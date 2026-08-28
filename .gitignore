@@ -1,0 +1,19 @@
+# Runtime and credentials
+.news-editor-work/
+outputs/
+.browser/
+*cookies*.txt
+*.info.json
+
+# Generated dependencies and caches
+node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+

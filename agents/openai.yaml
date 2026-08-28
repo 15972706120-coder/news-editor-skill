@@ -1,0 +1,8 @@
+interface:
+  display_name: "News-Editor"
+  short_description: "发现科技热点并用真实抖音素材制作新闻视频"
+  brand_color: "#00DCE6"
+  default_prompt: "使用 $news-editor 从非国家级来源搜索今天的科技热点，按事件、品牌、技术和人物方向扩展选题，确认后用真实抖音素材制作竖屏短视频。"
+
+policy:
+  allow_implicit_invocation: true
