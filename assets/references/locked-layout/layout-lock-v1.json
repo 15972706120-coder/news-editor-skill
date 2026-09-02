@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "reference_video": "../finished-video-reference.mp4",
+  "reference_frames": {
+    "cover": 0,
+    "page_1_stable": 105,
+    "cut_before": 209,
+    "cut_after": 210,
+    "page_2_stable": 315,
+    "final": 419
+  },
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "frames": 420
+  },
+  "colors": {
+    "board_gradient_top": "#071529",
+    "board_gradient_bottom": "#0B2D55",
+    "title_yellow": "#FFDE00",
+    "white": "#FFFFFF",
+    "red_emphasis": "#FF1837",
+    "cover_cyan": "#0AEAE6"
+  },
+  "cover": {
+    "background_video": [0, 240, 1080, 1440],
+    "headline_visible_bbox": [158, 1136, 921, 1240],
+    "subline_visible_bbox": [239, 1297, 842, 1376],
+    "handwritten_line_bbox": [135, 1434, 945, 1494],
+    "headline_font_px": 144,
+    "subline_font_px": 112,
+    "frame_overlay": "../cover-frame-lines-v3.png"
+  },
+  "body_page": {
+    "header": [0, 0, 1080, 464],
+    "headline_visible_bbox": [158, 167, 892, 230],
+    "subtitle_bar": [66, 270, 948, 92],
+    "divider": [0, 454, 1080, 3],
+    "footage": [0, 464, 1080, 1054],
+    "copy_board": [0, 1518, 1080, 402],
+    "section_label": [54, 1530, 124, 40],
+    "page_number_safe_bbox": [900, 1530, 126, 40],
+    "white_copy_safe_bbox": [54, 1602, 766, 105],
+    "red_emphasis_safe_bbox": [54, 1726, 766, 44],
+    "source_safe_bbox": [800, 1828, 226, 30],
+    "bottom_accent": [0, 1912, 1080, 8],
+    "headline_font_px": 64,
+    "subtitle_font_px": 46,
+    "copy_font_px": 48,
+    "red_font_px": 48
+  },
+  "platform": {
+    "right_reserved_from_x": 850,
+    "right_reserved_y": [700, 1810],
+    "red_logo_overlap_max_ratio": 0.25,
+    "red_min_readable_ratio": 0.75
+  },
+  "reference_color_override": "The confirmed source video uses black boards. New output must preserve all measured geometry and typography but replace black boards with the deep-navy gradient defined above."
+}
