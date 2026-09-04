@@ -11,16 +11,21 @@ $skillRoot = Join-Path $env:USERPROFILE '.agents\skills\news-editor'
 git clone https://github.com/15972706120-coder/news-editor-skill.git $skillRoot
 ```
 
-如果当前 Codex 环境已经从其他位置加载同名 `news-editor`，请只保留一个发现入口，避免出现两个同名 Skill。
+如果多个 Agent 平台必须使用不同的扫描目录，每个目录都必须是该仓库的独立干净克隆，并由启动门各自核对到同一个 GitHub commit；同一平台仍只保留一个发现入口，避免加载歧义。
 
-## 更新到最新稳定版
+## 每次运行前强制核对 GitHub
+
+News-Editor 不是按日期缓存版本。每个新请求、新 Agent、任务重启或阻塞后重启，第一步都会实时比较当前安装 commit 与 GitHub `main`：
 
 ```powershell
 $skillRoot = Join-Path $env:USERPROFILE '.agents\skills\news-editor'
-git -C $skillRoot pull --ff-only
+$runId = [guid]::NewGuid().ToString()
+pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\ensure_latest_skill.ps1') -RunId $runId
 ```
 
-Codex 通常会自动检测 Skill 变化；如果新版本没有出现，重启 Codex。`main` 分支只发布通过校验的稳定版，版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+`LATEST_READY` 表示当前 commit 与远端完全一致；`UPDATED_READY_RELOAD` 表示已完成安全快进，Agent 必须重新读取新版 Skill 后再工作。断网、超时、本地改动、错误远程、分支不符、历史分叉或更新后校验失败会严格阻断，不允许用旧版继续。脚本不会执行 reset、clean、stash 或强制覆盖。`main` 只发布通过校验的稳定版，版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+
+如需人工故障恢复，只能在确认工作树干净后执行 `git pull --ff-only`；它不是标准运行入口，也不能代替每次实时核验远端 SHA。
 
 ## 使用
 

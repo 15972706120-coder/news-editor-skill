@@ -1,7 +1,17 @@
 {
-  "version": "1.8.0",
+  "version": "1.9.0",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
+
+  "skill_update": {
+    "repository": "https://github.com/15972706120-coder/news-editor-skill.git",
+    "remote": "origin",
+    "branch": "main",
+    "policy": "strict_before_every_run",
+    "allow_stale_on_failure": false,
+    "network_timeout_seconds": 12,
+    "network_attempts": 2
+  },
 
   "output": {
     "root": "D:\\每日新闻",

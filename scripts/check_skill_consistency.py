@@ -82,9 +82,47 @@ def check_config(issues: list) -> None:
     except ValueError as error:
         issues.append(("FAIL", "config.json", f"JSON 解析失败: {error}"))
         return
-    for section in ("output", "voice", "mix", "video", "layout", "cover"):
+    for section in ("skill_update", "output", "voice", "mix", "video", "layout", "cover"):
         if section not in data:
             issues.append(("FAIL", "config.json", f"缺少必需段: {section}"))
+    version_path = ROOT / "VERSION"
+    if not version_path.exists():
+        issues.append(("FAIL", "VERSION", "缺失版本文件"))
+    else:
+        version_text = version_path.read_text(encoding="utf-8").strip()
+        if version_text != str(data.get("version", "")):
+            issues.append(("FAIL", "VERSION", "VERSION 与 config.json version 不一致"))
+        changelog = ROOT / "CHANGELOG.md"
+        if changelog.exists():
+            match = re.search(r"^##\s+([^\s]+)", changelog.read_text(encoding="utf-8"), re.MULTILINE)
+            if not match or match.group(1) != version_text:
+                issues.append(("FAIL", "CHANGELOG.md", "首个版本标题必须与 VERSION 一致"))
+
+    update = data.get("skill_update", {})
+    expected_update = {
+        "repository": "https://github.com/15972706120-coder/news-editor-skill.git",
+        "remote": "origin",
+        "branch": "main",
+        "policy": "strict_before_every_run",
+        "allow_stale_on_failure": False,
+    }
+    for key, expected in expected_update.items():
+        if update.get(key) != expected:
+            issues.append(("FAIL", "config.json", f"skill_update.{key} 必须为 {expected!r}"))
+    for key in ("network_timeout_seconds", "network_attempts"):
+        if not isinstance(update.get(key), int) or update[key] <= 0:
+            issues.append(("FAIL", "config.json", f"skill_update.{key} 必须是正整数"))
+
+    gate_script = ROOT / "scripts/ensure_latest_skill.ps1"
+    if not gate_script.exists():
+        issues.append(("FAIL", "scripts/ensure_latest_skill.ps1", "缺失 GitHub 最新版本启动门脚本"))
+    skill_path = ROOT / "SKILL.md"
+    if skill_path.exists():
+        skill_text = skill_path.read_text(encoding="utf-8")
+        gate_pos = skill_text.find("ensure_latest_skill.ps1")
+        config_pos = skill_text.find("## 当前默认配置")
+        if gate_pos < 0 or config_pos < 0 or gate_pos > config_pos:
+            issues.append(("FAIL", "SKILL.md", "版本启动门必须位于当前配置和所有任务动作之前"))
     if not str(data.get("output", {}).get("root", "")):
         issues.append(("FAIL", "config.json", "output.root 为空"))
     lock = data.get("layout", {}).get("active_lock_file", "")

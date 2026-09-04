@@ -3,8 +3,8 @@
 > 配音使用 MiniMax T2A API（见 [MiniMax TTS 集成](minimax-tts.md)）；Edge TTS 已弃用，`check_environment.ps1` 中的 edge-tts 检查仅为旧项目兼容，不是新制作环境的一部分。
 
 > 适用平台：Windows 10/11 x64  
-> 目标：在一台未配置的新电脑上完成热点发现、抖音搜索与下载、新闻女声、Remotion 排版渲染、FFmpeg 合成和最终验收。  
-> 执行原则：先安装并预检基础环境，再进入新闻制作；不要在制作中途临时猜测工具路径或随意更换技术路线。
+> 目标：在一台未配置的新电脑上完成 GitHub 版本核验、热点发现、抖音搜索与下载、新闻女声、Remotion 排版渲染、FFmpeg 合成和最终验收。
+> 执行原则：每次运行先通过 Skill 版本启动门，再安装或预检基础环境并进入新闻制作；不要在制作中途临时猜测工具路径或随意更换技术路线。
 
 ## 1. 依赖不是同一种“插件”
 
@@ -13,7 +13,7 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 | 层级 | 必需组件 | 负责的环节 | 安装位置 |
 |---|---|---|---|
 | Codex Skill | `news-editor`、`agent-browser`、完整 Remotion Skills | 工作规范、浏览器操作方法、Remotion 编排知识 | 用户 Skills 目录 |
-| 系统运行时 | Node.js、npm/npx、Python、PowerShell | 运行 CLI、Python 模块和预检脚本 | 操作系统 |
+| 系统运行时 | Git、Node.js、npm/npx、Python、PowerShell | 核对并安全快进 Skill，运行 CLI、Python 模块和预检脚本 | 操作系统 |
 | CLI / Python 包 | `agent-browser`、`yt-dlp` | 抖音检索、视频下载 | 全局 npm 或 Python 环境 |
 | 语音 API | MiniMax T2A（`scripts/minimax_tts.py`） | 新闻女声配音 | 环境变量凭据，按停点检查 |
 | 原生媒体工具 | FFmpeg、FFprobe、Chrome/Chromium | 转码、混音、抽帧、媒体探测、网页登录和渲染 | 系统 PATH 或显式路径 |
@@ -26,6 +26,7 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 ### 2.1 完整制作必须具备
 
 - Windows 10/11 x64。
+- Git，并能通过 HTTPS 访问 GitHub；每次运行必须实时核验远端 commit。
 - PowerShell 7 或更高版本；使用 `pwsh` 运行预检和制作脚本。
 - Node.js 24 LTS 或兼容的新版本，并包含 npm、npx。
 - Python 3.10 或更高版本。
@@ -43,7 +44,6 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 
 ### 2.2 条件性或可选能力
 
-- Git：迁移或版本管理 Remotion 工程时推荐，不是渲染本身的硬依赖。
 - 独立 GPU：不是硬依赖；CPU 可以渲染，但速度较慢。
 - 用户自备配音：用户直接提供音频或指定其他语音服务时，可以替代 MiniMax 生成。
 - 用户自备浏览器自动化：只有明确验证与现有检索规范等价时才能替代 `agent-browser`，默认不替代。
@@ -70,7 +70,7 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 1. 复制已有 Remotion 工程时，以项目的 `package-lock.json` 和 `npm ci` 为准。
 2. 新建工程时使用官方当前稳定版本，并保证所有 `remotion` 与 `@remotion/*` 包版本完全一致。
 3. `yt-dlp` 受网站变化影响较大；先使用已验证版本，解析器失效时再按官方升级方式受控更新。
-4. 不在每次新闻制作时自动升级依赖；升级属于环境维护动作，升级后必须重新运行深度预检。
+4. 不在每次新闻制作时自动升级系统依赖；升级属于环境维护动作，升级后必须重新运行深度预检。News-Editor Skill 本身例外：每次运行都实时核验 GitHub，仅在远端领先且可安全快进时更新。
 
 ## 4. 推荐安装顺序
 
@@ -121,9 +121,19 @@ $skillTarget = Join-Path $env:USERPROFILE '.agents\skills\news-editor'
 
 ```powershell
 Test-Path (Join-Path $skillTarget 'SKILL.md')
+Test-Path (Join-Path $skillTarget 'scripts\ensure_latest_skill.ps1')
 Test-Path (Join-Path $skillTarget 'scripts\check_environment.ps1')
 Test-Path (Join-Path $skillTarget 'assets\audio\bgm-01.mp3')
 ```
+
+安装完成后立即运行一次版本启动门；以后每个新请求也先运行：
+
+```powershell
+$runId = [guid]::NewGuid().ToString()
+pwsh -NoProfile -File (Join-Path $skillTarget 'scripts\ensure_latest_skill.ps1') -RunId $runId
+```
+
+只接受 `LATEST_READY`，或在 `UPDATED_READY_RELOAD` 后重新读取新版 Skill。任何其他状态都停止，不以本地缓存或旧副本继续。
 
 不要迁移旧电脑的 Cookie 文件、浏览器主配置或临时签名视频地址。新电脑使用专用浏览器目录，由用户重新登录抖音。
 
@@ -350,21 +360,18 @@ scripts/validate_news_video.py
 
 缺失任一 BGM、视觉参考或验收脚本时，不应把该 Skill 视作完整迁移。
 
-## 11. 强制环境预检
+## 11. 强制版本门与环境预检
 
-在新电脑第一次使用、工具升级后、或完整制作开始前运行。先从已支持的用户目录解析 Skill，不写死用户名或磁盘：
+每次调用先对当前 Agent 实际加载的 Skill 根目录运行版本门；新电脑第一次使用、工具升级后或完整制作开始前，再运行环境预检。不得从多个目录静默选择“第一份”而掩盖版本漂移：
 
 ```powershell
-$skillCandidates = @(
-  (Join-Path $env:USERPROFILE '.agents\skills\news-editor'),
-  (Join-Path $env:USERPROFILE '.codex\skills\news-editor')
-)
-$skillRoot = $skillCandidates |
-  Where-Object { Test-Path -LiteralPath (Join-Path $_ 'SKILL.md') -PathType Leaf } |
-  Select-Object -First 1
-if (-not $skillRoot) { throw '未找到 News-Editor Skill。' }
+$skillRoot = '<当前 Agent 实际加载的 news-editor 根目录>'
+$runId = [guid]::NewGuid().ToString()
+pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\ensure_latest_skill.ps1') -RunId $runId
 pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
 ```
+
+如果因平台兼容保留多个扫描目录，应分别运行版本门并确认它们返回相同 `remote_sha`；同一平台只配置一个发现入口。版本门发生更新时，必须重新读取该目录中的 `SKILL.md`、`config.json` 与所需 references 后再执行环境预检。
 
 如果已经创建或复制 Remotion 工程：
 
@@ -431,6 +438,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 
 | 缺失项 | 允许继续的工作 | 必须停止的节点 |
 |---|---|---|
+| Git 或 GitHub 网络 | 无 | Skill 版本启动门；不得使用无法核验的旧版继续 |
 | agent-browser CLI 或 Skill | 已给定链接的事实整理 | 抖音搜索、候选链接提取 |
 | yt-dlp | 搜索与候选链接整理 | 本地素材下载 |
 | FFmpeg / FFprobe | 选题、事实和文案 | 下载合并、媒体质检、裁切、混音、验收 |
@@ -448,6 +456,8 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 ## 14. 安全与凭据迁移
 
 - 不把 Cookie、账号密码、验证码、浏览器 Local Storage 或临时媒体签名打包进 Skill。
+- 版本门只访问 config 指定并由脚本锁定的公开 GitHub 仓库，不接受带用户名、Token 或密码的远程 URL，不触发交互式凭据提示。
+- 安装目录有本地修改、错误远程或历史分叉时不执行 reset、clean、stash、merge commit 或强制覆盖；转到独立开发克隆提交并发布后再运行。
 - 不复制旧电脑的浏览器主 profile；新电脑由用户重新登录。
 - 不在 `source-manifest.md`、Git 或聊天中记录 Cookie 值。
 - 不让环境脚本自动关闭浏览器、删除 profile 或修改系统执行策略。
