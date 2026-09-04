@@ -24,7 +24,7 @@ if (-not (Test-Path -LiteralPath $outputPath -PathType Container)) {
 $rootItems = @(Get-ChildItem -LiteralPath $outputPath -Force)
 foreach ($item in $rootItems) {
     if (-not $item.PSIsContainer) {
-        Add-Issue -Code 'ROOT_FILE' -Path $item.FullName -Message 'outputs 根目录只允许日期文件夹。'
+        Add-Issue -Code 'ROOT_FILE' -Path $item.FullName -Message '输出根目录只允许日期文件夹。'
         continue
     }
     if ($item.Name -notmatch '^\d{4}-\d{2}-\d{2}$') {

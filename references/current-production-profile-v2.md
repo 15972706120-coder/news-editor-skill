@@ -5,7 +5,8 @@
 ## 1. 声音
 
 - 默认 `audio_mode=minimax_tts_bgm`：MiniMax 配音 + BGM；下载素材原声全部静音。只有用户明确要求时才保留环境声。
-- 使用 [MiniMax TTS 集成](minimax-tts.md) 和 `scripts/minimax_tts.py`，默认 `speech-2.8-hd` 与非新闻主播音色 `Chinese (Mandarin)_Reliable_Executive`。不得继续使用 Edge TTS，也不得默认选择 `Chinese (Mandarin)_News_Anchor`。
+- 使用 [MiniMax TTS 集成](minimax-tts.md) 和 `scripts/minimax_tts.py`，默认 `speech-2.8-hd` 与音色 `Chinese (Mandarin)_News_Anchor`（2026-09-04 用户五音色试听对比后定版：pitch 0、speed 1.0、emotion calm）。不得继续使用 Edge TTS；`Chinese (Mandarin)_Reliable_Executive` 保留为备用男声，仅在用户点名时使用。
+- 混音定式（2026-09-04 实测通过全部硬门）：MiniMax stem 约 -19.5 LUFS / TP -2.2 dBFS；人声增益约 +2.4dB（页间 ±0.3），BGM-01（`assets/audio/bgm-01.mp3`）0–14s 平切后 -9.4dB（重叠区比人声低 12dB），按页起点 `adelay`，`amix=inputs=3:normalize=0` 后 `alimiter=limit=0.668:level=false`；目标 -17~-15 LUFS、TP ≤ -3 dBTP、逐页人声/BGM 差 12±1dB。陷阱：人声增益超过约 +4dB 会持续顶住限幅器（综合响度不再随增益线性下降），必须先定人声/BGM 相对差，再整体微调总增益。
 - Skill 完善、文案、视觉、下载和离线测试均不需要 API Key。第一次真正生成配音前才检查 `MINIMAX_API_KEY` 与账号站点；缺失时停在 N8，请用户在本机配置，不让用户在聊天中发送密钥。
 - MiniMax 仍属于机器合成音；成片不得宣称接入 MiniMax 即自动满足平台审核。每个项目的 `qa-report.json` 记录 `platform_voice_policy_review=manual_required`。
 
@@ -46,9 +47,9 @@
 ## 5. 命名
 
 - 在文案阶段锁定唯一字段 `cover_title_canonical`，即封面主标题的实际文字（不包含副标题）。
-- 发布目录为 `N.<cover_title_canonical>`；最终文件为 `<cover_title_canonical>.mp4` 和 `封面.png`。禁止附加 `-新闻女声`、`-MiniMax配音`、`-BGM版`、时长、版本号、`FINAL` 或 `draft`。
-- Windows 不允许的文件名字符必须在封面文案定稿前改为意思一致的可用文案；不得发布时静默替换，避免画面标题和文件名不一致。
-- 发布检查必须验证 MP4 basename 与主题目录去掉 `N.` 后完全一致；封面图片中的主标题仍需人工核对，不能用脚本文件名替代视觉确认。
+- 输出目录为 `D:\每日新闻\YYYY-MM-DD\N.<cover_title_canonical>`；最终文件为 `<cover_title_canonical>.mp4` 和 `封面.png`。禁止附加 `-新闻女声`、`-MiniMax配音`、`-BGM版`、时长、版本号、`FINAL` 或 `draft`。
+- Windows 不允许的文件名字符必须在封面文案定稿前改为意思一致的可用文案；不得输出时静默替换，避免画面标题和文件名不一致。
+- 输出检查必须验证 MP4 basename 与主题目录去掉 `N.` 后完全一致；封面图片中的主标题仍需人工核对，不能用脚本文件名替代视觉确认。
 
 ## 6. QA 证据边界
 

@@ -28,9 +28,24 @@ python scripts/minimax_tts.py --text-file <page-01.txt> --output <音频/page-01
 客户端调用 `POST <base>/v1/t2a_v2`，Bearer 鉴权，非流式、hex 输出。默认：
 
 - model：`speech-2.8-hd`；成本或速度优先时才显式改为 `speech-2.8-turbo`。
-- voice：`Chinese (Mandarin)_Reliable_Executive`；明确避开 `Chinese (Mandarin)_News_Anchor`。
+- voice：`Chinese (Mandarin)_News_Anchor`（2026-09-04 用户五音色试听对比后定版）；`Chinese (Mandarin)_Reliable_Executive` 为备用男声，仅在用户点名时使用。
 - `language_boost=Chinese`，`speed=1.0`，`vol=1.0`，`pitch=0`，`emotion=calm`。
 - 原始 stem：WAV、44.1kHz、单声道；最终混音时高质量重采样为 AAC、48kHz、立体声。
+
+### 参数扩展（`scripts/minimax_tts_pro.py`）
+
+需要调整语速、语调、情绪或混合音色时使用 `scripts/minimax_tts_pro.py`（凭据仍只从环境变量读取）。T2A v2 支持范围：
+
+- `speed` 0.5–2.0（值越大越快）；`vol` (0,10]；`pitch` -12~+12 半音（±3~5 内自然，可微调年龄感）。
+- `emotion`：`happy/sad/angry/fearful/disgusted/surprised/calm/fluent/whisper`；`speech-2.8-hd/turbo` 不支持 `whisper`，`fluent`/`whisper` 仅 2.6 系列。没有情绪强度参数。
+- `timbre_weights`：最多 4 个音色按权重混合（int 1–100，越高越接近该音色）；使用时 `voice_setting.voice_id` 置空。
+- `pronunciation_dict.tone`：不改稿纠正读音，如 `Cybercab/赛博卡布`（文本展开）、`郑栅洁/(zheng4)(shan1)杰`（拼音 1-4 声、5 轻声）、`resume/(rɪˈzjuːm)`（IPA）。
+- 停顿标记 `<#x#>`：两段可发音文本之间插入 0.01–99.99 秒停顿，不可连续使用；不支持 SSML。
+- `voice_setting.text_normalization`：开启后优化数字朗读，略增延迟。
+
+### 音色查询
+
+账户可用音色用 `POST <base>/v1/get_voice`、body `{"voice_type":"all"}` 查询（大陆站实测路径，国际站路径以官方文档为准）。返回 `system_voice[]` 含 `voice_id/voice_name/description`，本机账户 303 个系统音色。
 
 成功必须同时满足 HTTP 成功、`base_resp.status_code==0`、`data.status==2`、`data.audio` 非空且 hex 可解码；保留 `trace_id`，不记录鉴权头。文本少于 10000 字符；超过 3000 字符时应拆页或改流式，不把超长稿硬塞入同步接口。
 

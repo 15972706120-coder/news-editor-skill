@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.0 — 2026-09-04
+
+- 默认音色定版为 `Chinese (Mandarin)_News_Anchor`（用户五音色试听对比确认），`Reliable_Executive` 降为备用男声；两个 TTS 脚本默认值同步。
+- 新增 `minimax_tts_pro.py`：暴露 speed/vol/pitch/emotion/timbre_weights 参数，并记录发音词典、停顿标记、账户音色查询接口（`POST /v1/get_voice`）等扩展能力。
+- 写入实测混音定式：人声约 +2.4dB、BGM-01 0–14s 平切 -9.4dB、`alimiter=0.668`，并记录人声增益超过约 +4dB 触发限幅器"天花板泵"的陷阱。
+- 发布流程整体改为输出流程：输出区从 `<项目根>/outputs/` 迁移到独立磁盘路径 `D:\每日新闻\YYYY-MM-DD\N.中文新闻短名\`，工作区仍为项目根 `.news-editor-work`；全部文档与目录检查提示同步更新。
+
 ## 1.5.0 — 2026-09-04
 
 - 新增最高优先级 V2 制作配置：扩大中段实拍区，并按最新平台参考重排、下移正文文字组；机器坐标源切换为 `layout-lock-v2.json`。

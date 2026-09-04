@@ -25,7 +25,7 @@ ALLOWED_BASE_URLS = {
 }
 RETRYABLE_CODES = {1000, 1001, 1002, 1024, 1033, 2045}
 DEFAULT_MODEL = "speech-2.8-hd"
-DEFAULT_VOICE = "Chinese (Mandarin)_Reliable_Executive"
+DEFAULT_VOICE = "Chinese (Mandarin)_News_Anchor"
 
 
 def fail(message: str, code: int = 1) -> "NoReturn":
