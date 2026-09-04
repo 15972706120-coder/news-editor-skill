@@ -29,9 +29,22 @@ ALLOWED_BASE_URLS = {
     "https://api-bj.minimax.io",
 }
 RETRYABLE_CODES = {1000, 1001, 1002, 1024, 1033, 2045}
-DEFAULT_MODEL = "speech-2.8-hd"
-DEFAULT_VOICE = "Chinese (Mandarin)_News_Anchor"
 EMOTIONS = {"happy", "sad", "angry", "fearful", "disgusted", "surprised", "calm", "fluent", "whisper"}
+
+
+def _load_config_defaults() -> tuple[str, str]:
+    """默认 model/voice 优先取仓库根 config.json；文件缺失或字段缺省时回退内置值。"""
+    import json
+    builtin = ("speech-2.8-hd", "Chinese (Mandarin)_News_Anchor")
+    try:
+        data = json.loads((Path(__file__).resolve().parent.parent / "config.json").read_text(encoding="utf-8"))
+        voice_cfg = data.get("voice") or {}
+        return (str(voice_cfg.get("model") or builtin[0]), str(voice_cfg.get("default_voice_id") or builtin[1]))
+    except (OSError, ValueError):
+        return builtin
+
+
+DEFAULT_MODEL, DEFAULT_VOICE = _load_config_defaults()
 
 
 def fail(message: str, code: int = 1) -> "NoReturn":

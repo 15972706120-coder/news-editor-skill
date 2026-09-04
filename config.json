@@ -1,0 +1,86 @@
+{
+  "version": "1.8.0",
+  "status": "active",
+  "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
+
+  "output": {
+    "root": "D:\\每日新闻",
+    "date_dir_pattern": "YYYY-MM-DD（北京时间生产日期）",
+    "topic_dir_pattern": "{sequence}.{cover_title}",
+    "final_video_name": "{cover_title}.mp4",
+    "cover_name": "封面.png"
+  },
+
+  "workspace": {
+    "dir_name": ".news-editor-work",
+    "note": "工作区固定在项目根下，与输出区物理分离"
+  },
+
+  "voice": {
+    "provider": "MiniMax T2A v2",
+    "api_base_urls": {
+      "cn": "https://api.minimax.cn",
+      "cn_backup": "https://api-bj.minimaxi.com",
+      "global": "https://api.minimax.io"
+    },
+    "model": "speech-2.8-hd",
+    "default_voice_id": "Chinese (Mandarin)_News_Anchor",
+    "fallback_male_voice_id": "Chinese (Mandarin)_Reliable_Executive",
+    "speed": 1.0,
+    "pitch": 0,
+    "vol": 1.0,
+    "emotion": "calm",
+    "decided": "2026-09-04 用户五音色试听定版"
+  },
+
+  "mix": {
+    "bgm_source": "assets/audio/bgm-01.mp3",
+    "bgm_segment_seconds": [0, 14],
+    "bgm_gain_db": -9.4,
+    "voice_target_segment_lufs": -18.0,
+    "voice_delay_ms": [167, 7383],
+    "limiter_threshold_linear": 0.668,
+    "final_format": { "codec": "aac", "sample_rate_hz": 48000, "channels": 2, "bitrate": "192k" },
+    "target_integrated_lufs": -16.0,
+    "integrated_lufs_range": [-17.0, -15.0],
+    "max_true_peak_dbtp": -3.0,
+    "voice_bgm_delta_db": 12.0,
+    "delta_tolerance_db": 1.0,
+    "gain_iteration_max": 3,
+    "notes": "先按 voice_target_segment_lufs 把各页人声归一并由 BGM 增益保持 12dB 差，再整体微调总增益至 LUFS 区间；人声增益超过约 +4dB 会持续顶限幅器（天花板泵），需控制单页增益"
+  },
+
+  "video": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "duration_seconds": 14.0,
+    "total_frames": 420,
+    "cover_frames": 1,
+    "crf_range": [18, 20],
+    "pixel_format": "yuv420p"
+  },
+
+  "layout": {
+    "active_lock_file": "assets/references/locked-layout/layout-lock-v2.json",
+    "human_readable_mirror": "references/locked-layout-validation.md",
+    "tolerance_px": 2
+  },
+
+  "cover": {
+    "frame_overlay": "assets/references/cover-frame-lines-v3.png",
+    "headline_font_px": 144,
+    "subline_font_px": 112,
+    "headline_fullchar_range": [4, 7],
+    "headline_hard_max": 8,
+    "subline_fullchar_range": [5, 10],
+    "subline_hard_max": 12,
+    "thumbnail_check": "270x360"
+  },
+
+  "bgm_library": [
+    "assets/audio/bgm-01.mp3",
+    "assets/audio/bgm-02.mp3",
+    "assets/audio/bgm-03.mp3"
+  ]
+}

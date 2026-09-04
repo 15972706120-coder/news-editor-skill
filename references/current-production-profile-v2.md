@@ -5,29 +5,16 @@
 ## 1. 声音
 
 - 默认 `audio_mode=minimax_tts_bgm`：MiniMax 配音 + BGM；下载素材原声全部静音。只有用户明确要求时才保留环境声。
-- 使用 [MiniMax TTS 集成](minimax-tts.md) 和 `scripts/minimax_tts.py`，默认 `speech-2.8-hd` 与音色 `Chinese (Mandarin)_News_Anchor`（2026-09-04 用户五音色试听对比后定版：pitch 0、speed 1.0、emotion calm）。不得继续使用 Edge TTS；`Chinese (Mandarin)_Reliable_Executive` 保留为备用男声，仅在用户点名时使用。
-- 混音定式（2026-09-04 实测通过全部硬门）：MiniMax stem 约 -19.5 LUFS / TP -2.2 dBFS；人声增益约 +2.4dB（页间 ±0.3），BGM-01（`assets/audio/bgm-01.mp3`）0–14s 平切后 -9.4dB（重叠区比人声低 12dB），按页起点 `adelay`，`amix=inputs=3:normalize=0` 后 `alimiter=limit=0.668:level=false`；目标 -17~-15 LUFS、TP ≤ -3 dBTP、逐页人声/BGM 差 12±1dB。陷阱：人声增益超过约 +4dB 会持续顶住限幅器（综合响度不再随增益线性下降），必须先定人声/BGM 相对差，再整体微调总增益。
+- 配音与混音的全部参数（模型、默认音色、语速/语调/情绪、BGM 增益、人声目标响度、限幅阈值、响度与真峰值验收范围、逐页避让差）以 `config.json` 的 `voice` 与 `mix` 段为唯一事实源，执行用 `scripts/minimax_tts.py` 与 `scripts/mix_news_audio.py`。决策背景：默认音色于 2026-09-04 经用户五音色试听对比定版（详见 CHANGELOG 1.6.0）；Edge TTS 已弃用，备用男声仅在用户点名时使用。
+- 混音方法论（经验约束，数值见 config）：先按人声目标段响度归一各页配音并由 BGM 增益保持 12dB 避让差，再整体微调总增益至综合响度区间。陷阱：人声增益超过约 +4dB 会持续顶住限幅器（综合响度不再随增益线性下降）；`mix_news_audio.py` 已内置自动校准。
 - Skill 完善、文案、视觉、下载和离线测试均不需要 API Key。第一次真正生成配音前才检查 `MINIMAX_API_KEY` 与账号站点；缺失时停在 N8，请用户在本机配置，不让用户在聊天中发送密钥。
 - MiniMax 仍属于机器合成音；成片不得宣称接入 MiniMax 即自动满足平台审核。每个项目的 `qa-report.json` 记录 `platform_voice_policy_review=manual_required`。
 
 ## 2. 正文 V2 坐标
 
-唯一坐标源为 `assets/references/locked-layout/layout-lock-v2.json`：
+唯一坐标源为 `config.json` 的 `layout` 段所引用的锁定 JSON（`assets/references/locked-layout/layout-lock-v2.json`）；人读镜像与分板验收流程见 [locked-layout-validation.md](locked-layout-validation.md)。本文档不再复述具体坐标值。
 
-```text
-画布：1080×1920
-标题区：[0, 0, 1080, 344]
-副标题黄条：[26, 248, 1028, 80]
-黄线：[0, 340, 1080, 4]
-实拍区：[0, 344, 1080, 1024]
-正文底板：[0, 1368, 1080, 552]
-角标/页码 y=1408
-白字：[54, 1498, 766, 116]
-红字：[54, 1648, 766, 58]
-来源：[800, 1838, 226, 30]
-```
-
-这些坐标把用户参考图归一化到 1080×1920 后，将文字组下移约 200px，并用腾出的上部空间放大中段素材。不得在 V1 坐标上机械再加 200px，否则红字和来源会越出画布。V2 必须通过实际平台叠层预览；自动坐标匹配不代表平台遮挡合格。
+坐标背景：V2 把用户参考图归一化到 1080×1920 后，将文字组下移约 200px，并用腾出的上部空间放大中段素材。不得在 V1 坐标上机械再加 200px，否则红字和来源会越出画布。V2 必须通过实际平台叠层预览；自动坐标匹配不代表平台遮挡合格。
 
 ## 3. 封面干净帧硬门
 
@@ -47,7 +34,7 @@
 ## 5. 命名
 
 - 在文案阶段锁定唯一字段 `cover_title_canonical`，即封面主标题的实际文字（不包含副标题）。
-- 输出目录为 `D:\每日新闻\YYYY-MM-DD\N.<cover_title_canonical>`；最终文件为 `<cover_title_canonical>.mp4` 和 `封面.png`。禁止附加 `-新闻女声`、`-MiniMax配音`、`-BGM版`、时长、版本号、`FINAL` 或 `draft`。
+- 输出根目录、日期/主题目录与最终文件命名模式见 `config.json` 的 `output` 段；最终文件为 `<cover_title_canonical>.mp4` 和 `封面.png`。禁止附加 `-新闻女声`、`-MiniMax配音`、`-BGM版`、时长、版本号、`FINAL` 或 `draft`。
 - Windows 不允许的文件名字符必须在封面文案定稿前改为意思一致的可用文案；不得输出时静默替换，避免画面标题和文件名不一致。
 - 输出检查必须验证 MP4 basename 与主题目录去掉 `N.` 后完全一致；封面图片中的主标题仍需人工核对，不能用脚本文件名替代视觉确认。
 

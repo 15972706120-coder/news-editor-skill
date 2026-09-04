@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.0 — 2026-09-04
+
+- 新增仓库根 `config.json` 作为全部制作 FACT（输出路径、音色与模型、混音参数、成片规格、坐标锁定文件引用）的唯一机器事实源；修改任何值只改一处。
+- 文档全面瘦身去复述：SKILL.md、profile-v2、README 与 7 个 reference 中的输出路径、坐标数字、音色 ID、混音响度数值全部改为引用 config 或锁定 JSON；坐标的唯一人读镜像限定在 `locked-layout-validation.md`，音色 API 说明限定在 `minimax-tts.md`。
+- 脚本直接消费 config：`minimax_tts.py` 的默认模型/音色、`publish_news_output.ps1` 与 `check_output_layout.ps1` 的输出根目录（`-OutputRoot` 变为可选参数）均从 config 读取，忘传/传错路径的空间归零。
+- 新增 `scripts/mix_news_audio.py` 自动混音：按 config 把各页人声归一到目标段响度、BGM 自动计算 12dB 避让增益、限幅后实测综合响度并有限迭代校准；输出结构化指标 JSON。回归验证与 2026-09-04 手工版逐项一致（I -15.1 LUFS / TP -3.5 / 逐页差 11.9，且一次迭代命中）。
+- 一致性门禁升级：新增 config 完整性检查（必需段、锁定文件与 BGM 资产存在性）与"文档复述 FACT"检查（输出路径/坐标模式/音色 ID 只允许出现在 config、CHANGELOG 与两份镜像文档）。
+
 ## 1.7.0 — 2026-09-04
 
 - 规范去双轨化：删除 SKILL.md 的 V1 条款与 `10a/15a` 补丁覆盖结构，封面零模糊与 `layout-lock-v2.json` 坐标直接并入正文条款；V1 历史仅留 CHANGELOG。

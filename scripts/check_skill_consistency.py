@@ -25,14 +25,24 @@ CURRENT_DOCS = [p for p in DOCS if p.name != "CHANGELOG.md"]
 
 # (模式, 级别, 说明)；对个别已正确降级的历史兼容代码豁免
 BANNED_PATTERNS = [
-    (re.compile(r"(outputs[/\\]|`outputs`|<项目根>/outputs)"), "FAIL", "输出区已迁移到 D:\\每日新闻，残留 outputs 引用"),
+    (re.compile(r"(outputs[/\\]|`outputs`|<项目根>/outputs)"), "FAIL", "输出区已迁移（根目录见 config.json），残留 outputs 引用"),
     (re.compile(r"edge[-_]tts|Edge TTS", re.IGNORECASE), "FAIL", "Edge TTS 已弃用；新制作环境不得包含（CHANGELOG 除外）"),
     (re.compile(r"layout-lock-v1(\.json)?"), "WARN", "V1 锁定坐标仅历史参考，现行唯一坐标源是 layout-lock-v2.json"),
     (re.compile(r"1080[×x]464|1080[×x]1054|1080[×x]402"), "WARN", "V1 分板数字（464/1054/402）残留"),
-    (re.compile(r"x=0, y=464|x=0, y=1518|y=1602|y=1726"), "WARN", "V1 文字坐标残留"),
+    (re.compile(r"D:.每日新闻"), "FAIL", "输出根目录是 FACT，只允许存在于 config.json；文档请引用 config 的 output.root"),
+    (re.compile(r"x=\d+,\s*y=\d+"), "WARN", "坐标复述：FACT 只允许存在于 config.json 与锁定 JSON；人读镜像仅限 locked-layout-validation.md"),
+    (re.compile(r"Chinese \(Mandarin\)_"), "WARN", "音色 ID 复述：默认值只存在于 config.json；API 说明文档 minimax-tts.md 除外"),
 ]
 EXEMPT_FILES = {  # 相对 ROOT 的文件 → 豁免的 (模式序号) 集合
     "scripts/check_environment.ps1": {1},  # edge-tts 已降级为 legacy 非必需检查，保留兼容
+    "scripts/check_skill_consistency.py": {0, 2, 4, 5, 6},  # 检查器自身的模式定义字符串
+    "scripts/minimax_tts.py": {6},  # config 缺失时的内置兜底音色（防御性编程）
+}
+# FACT 复述的合法位置（模式序号 → 允许出现的文件集合，均为相对 ROOT 路径）
+FACT_EXEMPT_DOCS = {
+    4: {"config.json", "CHANGELOG.md"},                       # 输出根路径
+    5: {"config.json", "CHANGELOG.md", "references/locked-layout-validation.md"},  # 坐标（人读镜像）
+    6: {"config.json", "CHANGELOG.md", "references/minimax-tts.md"},               # 音色 ID（API 文档）
 }
 
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)#\s]+)(?:#[^)\s]*)?\)")
@@ -42,14 +52,16 @@ ASSET_RE = re.compile(r"(assets/[\w\-./]+\.\w+)")
 def check_terms(issues: list) -> None:
     # "不得使用/已弃用 Edge TTS" 等政策声明是合法表述，不构成残留
     policy_words = ("不得", "不再", "已弃用", "弃用", "禁止", "迁移", "历史", "兼容", "仅供")
-    targets = [*(p.resolve() for p in CURRENT_DOCS), *sorted(SCRIPTS_DIR.glob("*.ps1"))]
+    targets = [*(p.resolve() for p in CURRENT_DOCS), ROOT / "README.md", *sorted(SCRIPTS_DIR.glob("*.ps1")),
+               *sorted(SCRIPTS_DIR.glob("*.py")), ROOT / "config.json"]
+    targets = [p for p in targets if p.exists()]
     for path in targets:
         rel = path.relative_to(ROOT).as_posix()
         exempt = EXEMPT_FILES.get(rel, set())
         text = path.read_text(encoding="utf-8", errors="replace")
         lines = text.splitlines()
         for idx, (pattern, level, message) in enumerate(BANNED_PATTERNS):
-            if idx in exempt:
+            if idx in exempt or rel in FACT_EXEMPT_DOCS.get(idx, set()):
                 continue
             for m in pattern.finditer(text):
                 line_no = text.count("\n", 0, m.start()) + 1
@@ -57,6 +69,30 @@ def check_terms(issues: list) -> None:
                 if idx == 1 and any(w in line_text for w in policy_words):
                     continue
                 issues.append((level, f"{rel}:{line_no}", f"{message}（命中: {m.group(0)[:40]}）"))
+
+
+def check_config(issues: list) -> None:
+    import json
+    path = ROOT / "config.json"
+    if not path.exists():
+        issues.append(("FAIL", "config.json", "缺失唯一 FACT 事实源 config.json"))
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError as error:
+        issues.append(("FAIL", "config.json", f"JSON 解析失败: {error}"))
+        return
+    for section in ("output", "voice", "mix", "video", "layout", "cover"):
+        if section not in data:
+            issues.append(("FAIL", "config.json", f"缺少必需段: {section}"))
+    if not str(data.get("output", {}).get("root", "")):
+        issues.append(("FAIL", "config.json", "output.root 为空"))
+    lock = data.get("layout", {}).get("active_lock_file", "")
+    if lock and not (ROOT / lock).exists():
+        issues.append(("FAIL", "config.json", f"layout.active_lock_file 指向的文件不存在: {lock}"))
+    bgm = data.get("mix", {}).get("bgm_source", "")
+    if bgm and not (ROOT / bgm).exists():
+        issues.append(("FAIL", "config.json", f"mix.bgm_source 指向的文件不存在: {bgm}"))
 
 
 def check_links(issues: list) -> None:
@@ -104,6 +140,7 @@ def check_active_layout(issues: list) -> None:
 
 def main() -> int:
     issues: list[tuple[str, str, str]] = []
+    check_config(issues)
     check_terms(issues)
     check_links(issues)
     check_assets(issues)

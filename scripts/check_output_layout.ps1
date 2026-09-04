@@ -1,10 +1,18 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
     [string]$OutputRoot
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $OutputRoot) {
+    # 缺省输出根目录从仓库根 config.json 读取
+    $configPath = Join-Path $PSScriptRoot '..\config.json'
+    if (Test-Path -LiteralPath $configPath) {
+        $cfg = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+        $OutputRoot = $cfg.output.root
+    }
+    if (-not $OutputRoot) { throw '未提供 -OutputRoot，且 config.json 缺少 output.root。' }
+}
 $outputPath = [System.IO.Path]::GetFullPath($OutputRoot).TrimEnd('\')
 $issues = [System.Collections.Generic.List[object]]::new()
 

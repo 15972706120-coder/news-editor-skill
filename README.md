@@ -44,7 +44,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
 
 ## 文件边界
 
-- 输出区 `D:\每日新闻\YYYY-MM-DD\N.封面主标题\` 只放与封面主标题同名的最终 MP4 和 `封面.png`。
+- 输出区 `<输出根>/YYYY-MM-DD/N.封面主标题/`（输出根见 [config.json](config.json) 的 `output.root`）只放与封面主标题同名的最终 MP4 和 `封面.png`。
 - 原片、工程、音频、预览、日志和 QA 放在项目根的 `.news-editor-work/`。
 - 不得向 Git 提交 Cookie、浏览器 profile、临时签名地址、下载元数据或新闻生产输出。
 
@@ -52,7 +52,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
 
 ```powershell
 python -X utf8 <skill-creator-path>\scripts\quick_validate.py $skillRoot
-pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_output_layout.ps1') -OutputRoot 'D:\每日新闻'
+pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_output_layout.ps1')   # 输出根目录缺省从 config.json 读取
 ```
 
 修改本仓库后启用可分发的提交门禁（一次性配置）：
@@ -61,4 +61,4 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_output_layout.ps1') -
 git -C $skillRoot config core.hooksPath hooks
 ```
 
-`hooks/pre-commit` 会运行 `scripts/check_skill_consistency.py`，拦截被取代术语（如 `outputs` 路径、Edge TTS）、V1 坐标残留、失效内部链接与 Python 语法错误。
+`hooks/pre-commit` 会运行 `scripts/check_skill_consistency.py`，拦截被取代的旧术语与旧路径、V1 坐标残留、FACT 复述、失效内部链接与 Python 语法错误。

@@ -153,11 +153,11 @@ target_count: 1-3
 
 ### 4.2 运行时根目录与推荐结构
 
-不得在 Skill 中写死盘符、用户名、桌面位置或某台电脑的工具路径。开始任务时按以下优先级确定项目根目录：用户明确指定的目录、当前保存项目根目录、当前工作目录。工作区从项目根派生；输出区是用户配置的独立目录（当前为 `D:\每日新闻\`，以 [当前制作配置 V2](current-production-profile-v2.md) 为准），不从项目根派生。如果调用方显式传入其他位置，则以调用方为准。
+不得在 Skill 中写死盘符、用户名、桌面位置或某台电脑的工具路径。开始任务时按以下优先级确定项目根目录：用户明确指定的目录、当前保存项目根目录、当前工作目录。工作区从项目根派生；输出区是用户配置的独立目录（以仓库根 `config.json` 的 `output.root` 为准），不从项目根派生。如果调用方显式传入其他位置，则以调用方为准。
 
 ```powershell
 $projectRoot = [System.IO.Path]::GetFullPath('<运行时项目根目录>')
-$outputRoot = '<输出区根目录>'   # 当前用户配置：D:\每日新闻
+$outputRoot = '<输出区根目录>'   # 运行时从 config.json 的 output.root 解析
 $workRoot = Join-Path $projectRoot '.news-editor-work'
 $productionDate = 'YYYY-MM-DD'
 $sequence = 1
@@ -177,7 +177,7 @@ $browserProfileRoot = Join-Path $sensitiveRoot '浏览器配置\抖音'
 变量只在当前任务中解析为绝对路径；写入 Skill、清单和公开文档时使用变量名或相对路径，不回写本机绝对路径。
 
 ```text
-<输出区>/                              # 用户配置的独立目录，当前 D:\每日新闻\
+<输出区>/                              # 用户配置的独立目录，根目录见 config.json 的 output.root
 └─ YYYY-MM-DD/
    └─ N.封面主标题/
       ├─ 封面主标题.mp4

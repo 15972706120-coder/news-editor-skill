@@ -7,16 +7,16 @@
 输出区与工作区物理分离，分别位于独立磁盘路径与项目根目录：
 
 ```text
-D:\每日新闻\                 # 用户输出区（独立磁盘），只放最终交付
+<输出根>\                    # 用户输出区（独立磁盘，根目录见 config.json 的 output.root），只放最终交付
 <项目根>\.news-editor-work\  # 内部工作区，保留全部可追溯资料
 ```
 
-`D:\每日新闻` 必须保持“打开即可取成片”的状态；`.news-editor-work` 才是素材、工程、版本和验收记录的存放位置。不得把工作区放进输出区，也不得把最终交付只放在系统临时目录。
+输出根必须保持“打开即可取成片”的状态；`.news-editor-work` 才是素材、工程、版本和验收记录的存放位置。不得把工作区放进输出区，也不得把最终交付只放在系统临时目录。
 
 ## 输出区结构
 
 ```text
-D:\每日新闻\
+<输出根>\
 └─ YYYY-MM-DD/
    ├─ 1.封面主标题/
    │  ├─ 封面主标题.mp4
@@ -31,7 +31,7 @@ D:\每日新闻\
 
 硬性规则：
 
-- `D:\每日新闻` 根目录只允许 `YYYY-MM-DD` 日期目录，不允许散落文件或其他目录。
+- 输出根目录只允许 `YYYY-MM-DD` 日期目录，不允许散落文件或其他目录。
 - 日期使用北京时间的实际生产日期；日期下一层只允许新闻主题目录，不允许散落文件。
 - 主题目录命名为 `N.<cover_title_canonical>`，`N` 按当日完成生产并输出的顺序从 1 连续递增；标题必须就是封面主标题。
 - 一个主题目录默认恰好包含一个最终 MP4 和一个 `封面.png`，不得有子目录。
@@ -67,15 +67,15 @@ D:\每日新闻\
 
 ```powershell
 pwsh scripts/publish_news_output.ps1 `
-  -OutputRoot 'D:\每日新闻' `
   -WorkRoot <项目根>/.news-editor-work `
   -Date YYYY-MM-DD `
   -Sequence 1 `
   -CoverTitle 封面主标题 `
   -FinalVideo <内部最终版.mp4> `
   -Cover <内部封面.png>
+  # -OutputRoot 缺省从 config.json 的 output.root 读取
 
-pwsh scripts/check_output_layout.ps1 -OutputRoot 'D:\每日新闻'
+pwsh scripts/check_output_layout.ps1   # 输出根目录同样缺省从 config.json 读取
 ```
 
 输出脚本先复制到临时文件再改为稳定文件名，避免留下半成品；目标已有内容时默认拒绝，只有明确使用 `-Replace` 才会把旧版归档后替换。目录检查失败时不得交付。
@@ -148,7 +148,7 @@ pwsh scripts/check_output_layout.ps1 -OutputRoot 'D:\每日新闻'
 - 使用的 1–3 条抖音素材来源账号或链接，以及主体画面均来自下载素材的说明。
 - 最终 MP4 与 `封面.png` 的绝对可点击链接。
 - 独立配音、发布文案或来源说明只有在用户需要时才进入发布目录；工程和 QA 资料提供工作区链接，不复制到发布目录。
-- 交付前明确报告目录检查结果；稳定 `D:\每日新闻\YYYY-MM-DD\N.中文新闻短名\` 中的文件才是主交付。
+- 交付前明确报告目录检查结果；稳定 `<输出根>/YYYY-MM-DD/N.中文新闻短名/`（输出根见 config.json）中的文件才是主交付。
 
 ## 最终 QA 记录
 
