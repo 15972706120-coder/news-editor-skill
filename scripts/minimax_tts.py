@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Generate a short News-Editor voice stem with MiniMax T2A v2."""
+"""Generate a short News-Editor voice stem with MiniMax T2A v2.
+
+凭据只从环境变量 MINIMAX_API_KEY / MINIMAX_API_BASE_URL 读取，绝不进入命令行参数、日志或仓库。
+支持 voice/speed/vol/pitch/emotion/timbre_weights；voice 未显式指定时按
+MINIMAX_VOICE_ID 环境变量 → 内置默认 的顺序回退，并在 JSON 输出的
+voice_source 字段中标明来源，防止"以为在用 A 音色、实际回退到默认"的静默事故。
+"""
 
 from __future__ import annotations
 
@@ -11,21 +17,21 @@ import random
 import sys
 import time
 import urllib.error
-import urllib.parse
 import urllib.request
 import wave
 from pathlib import Path
-
 
 ALLOWED_BASE_URLS = {
     "https://api.minimax.cn",
     "https://api-bj.minimaxi.com",
     "https://api.minimax.io",
     "https://api-uw.minimax.io",
+    "https://api-bj.minimax.io",
 }
 RETRYABLE_CODES = {1000, 1001, 1002, 1024, 1033, 2045}
 DEFAULT_MODEL = "speech-2.8-hd"
 DEFAULT_VOICE = "Chinese (Mandarin)_News_Anchor"
+EMOTIONS = {"happy", "sad", "angry", "fearful", "disgusted", "surprised", "calm", "fluent", "whisper"}
 
 
 def fail(message: str, code: int = 1) -> "NoReturn":
@@ -33,11 +39,10 @@ def fail(message: str, code: int = 1) -> "NoReturn":
     raise SystemExit(code)
 
 
-def configuration() -> tuple[str, str, str, str]:
+def configuration() -> tuple[str, str, str]:
     key = os.environ.get("MINIMAX_API_KEY", "").strip()
     base = os.environ.get("MINIMAX_API_BASE_URL", "").strip().rstrip("/")
     model = os.environ.get("MINIMAX_TTS_MODEL", DEFAULT_MODEL).strip()
-    voice = os.environ.get("MINIMAX_VOICE_ID", DEFAULT_VOICE).strip()
     if not key:
         fail(
             "缺少 MINIMAX_API_KEY。请在本机环境变量中配置，不要把密钥粘贴到聊天、命令行、日志或仓库。",
@@ -48,9 +53,9 @@ def configuration() -> tuple[str, str, str, str]:
             "MINIMAX_API_BASE_URL 必须明确设置为中国大陆站或国际站的 MiniMax 官方 HTTPS 地址；禁止自动跨站尝试密钥。",
             2,
         )
-    if not model or not voice:
-        fail("MiniMax model 和 voice_id 不能为空。", 2)
-    return key, base, model, voice
+    if not model:
+        fail("MiniMax model 不能为空。", 2)
+    return key, base, model
 
 
 def post_json(url: str, key: str, payload: dict[str, object], timeout: float) -> tuple[dict[str, object], str | None]:
@@ -68,28 +73,30 @@ def post_json(url: str, key: str, payload: dict[str, object], timeout: float) ->
     return body, trace_id
 
 
-def synthesize(text: str, output: Path, timeout: float, attempts: int) -> dict[str, object]:
-    key, base, model, voice = configuration()
+def synthesize(text: str, output: Path, voice: str, voice_source: str,
+               speed: float, vol: float, pitch: int, emotion: str | None,
+               timbre: list[dict], timeout: float, attempts: int) -> dict[str, object]:
+    key, base, model = configuration()
     if not text.strip():
         fail("配音文本不能为空。", 2)
     if len(text) >= 10000:
         fail("同步 T2A 文本必须少于 10000 字符；超过 3000 字符时应改用流式或拆段。", 2)
 
+    voice_setting: dict[str, object] = {"voice_id": voice, "speed": speed, "vol": vol, "pitch": pitch}
+    if emotion:
+        voice_setting["emotion"] = emotion
     payload: dict[str, object] = {
         "model": model,
         "text": text,
         "stream": False,
         "language_boost": "Chinese",
         "output_format": "hex",
-        "voice_setting": {
-            "voice_id": voice,
-            "speed": 1.0,
-            "vol": 1.0,
-            "pitch": 0,
-            "emotion": "calm",
-        },
+        "voice_setting": voice_setting,
         "audio_setting": {"sample_rate": 44100, "format": "wav", "channel": 1},
     }
+    if timbre:
+        payload["timbre_weights"] = timbre
+        payload["voice_setting"] = dict(voice_setting, voice_id="")
 
     last_error = ""
     for attempt in range(1, attempts + 1):
@@ -126,7 +133,12 @@ def synthesize(text: str, output: Path, timeout: float, attempts: int) -> dict[s
                     "output": str(output.resolve()),
                     "bytes": output.stat().st_size,
                     "model": model,
-                    "voice_id": voice,
+                    "voice_id": voice or "(timbre_mix)",
+                    "voice_source": voice_source,
+                    "speed": speed,
+                    "pitch": pitch,
+                    "emotion": emotion,
+                    "timbre_weights": timbre,
                     "wav": wav_spec,
                     "trace_id": trace_id or body.get("trace_id"),
                 }
@@ -152,13 +164,49 @@ def main() -> int:
     source.add_argument("--text")
     source.add_argument("--text-file", type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--voice", default=None,
+                        help="音色 ID；缺省依次取 MINIMAX_VOICE_ID 环境变量、内置默认音色")
+    parser.add_argument("--speed", type=float, default=1.0, help="0.5–2.0")
+    parser.add_argument("--vol", type=float, default=1.0, help="0–10")
+    parser.add_argument("--pitch", type=int, default=0, help="-12 到 +12 半音")
+    parser.add_argument("--emotion", default=None,
+                        help="happy/sad/angry/fearful/disgusted/surprised/calm/fluent/whisper；缺省由模型自动匹配")
+    parser.add_argument("--timbre", default=None,
+                        help='混合音色 JSON，如 [{"voice_id":"A","weight":70},{"voice_id":"B","weight":30}]；使用时 voice_id 自动置空')
     parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--attempts", type=int, default=3)
     args = parser.parse_args()
     if not 1 <= args.attempts <= 3:
         fail("--attempts must be between 1 and 3", 2)
+    if not -12 <= args.pitch <= 12:
+        fail("--pitch must be between -12 and 12", 2)
+    if not 0.5 <= args.speed <= 2.0:
+        fail("--speed must be between 0.5 and 2.0", 2)
+    if not 0 < args.vol <= 10:
+        fail("--vol must be in (0, 10]", 2)
+    if args.emotion and args.emotion not in EMOTIONS:
+        fail(f"--emotion 必须是 {sorted(EMOTIONS)} 之一", 2)
+    try:
+        timbre = json.loads(args.timbre) if args.timbre else []
+    except json.JSONDecodeError as error:
+        fail(f"--timbre 不是合法 JSON: {error}", 2)
+    if timbre and (not isinstance(timbre, list) or len(timbre) > 4
+                   or not all(isinstance(t, dict) and "voice_id" in t and "weight" in t for t in timbre)):
+        fail("--timbre 必须是 1–4 个含 voice_id 与 weight 的对象数组", 2)
+
+    env_voice = os.environ.get("MINIMAX_VOICE_ID", "").strip()
+    if args.voice is not None:
+        voice, voice_source = args.voice, "explicit"
+    elif env_voice:
+        voice, voice_source = env_voice, "env"
+    else:
+        voice, voice_source = DEFAULT_VOICE, "default_fallback"
+
     text = args.text if args.text is not None else args.text_file.read_text(encoding="utf-8")
-    print(json.dumps(synthesize(text, args.output, args.timeout, args.attempts), ensure_ascii=False, indent=2))
+    print(json.dumps(synthesize(text, args.output, voice, voice_source,
+                                args.speed, args.vol, args.pitch, args.emotion,
+                                timbre, args.timeout, args.attempts),
+                     ensure_ascii=False, indent=2))
     return 0
 
 

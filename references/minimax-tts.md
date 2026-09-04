@@ -32,14 +32,15 @@ python scripts/minimax_tts.py --text-file <page-01.txt> --output <音频/page-01
 - `language_boost=Chinese`，`speed=1.0`，`vol=1.0`，`pitch=0`，`emotion=calm`。
 - 原始 stem：WAV、44.1kHz、单声道；最终混音时高质量重采样为 AAC、48kHz、立体声。
 
-### 参数扩展（`scripts/minimax_tts_pro.py`）
+### 可调参数（`scripts/minimax_tts.py`）
 
-需要调整语速、语调、情绪或混合音色时使用 `scripts/minimax_tts_pro.py`（凭据仍只从环境变量读取）。T2A v2 支持范围：
+语速、语调、情绪与混合音色均由同一脚本暴露（凭据仍只从环境变量读取）：
 
-- `speed` 0.5–2.0（值越大越快）；`vol` (0,10]；`pitch` -12~+12 半音（±3~5 内自然，可微调年龄感）。
-- `emotion`：`happy/sad/angry/fearful/disgusted/surprised/calm/fluent/whisper`；`speech-2.8-hd/turbo` 不支持 `whisper`，`fluent`/`whisper` 仅 2.6 系列。没有情绪强度参数。
-- `timbre_weights`：最多 4 个音色按权重混合（int 1–100，越高越接近该音色）；使用时 `voice_setting.voice_id` 置空。
-- `pronunciation_dict.tone`：不改稿纠正读音，如 `Cybercab/赛博卡布`（文本展开）、`郑栅洁/(zheng4)(shan1)杰`（拼音 1-4 声、5 轻声）、`resume/(rɪˈzjuːm)`（IPA）。
+- `--voice` 显式传入；缺省依次取 `MINIMAX_VOICE_ID` 环境变量、内置默认音色，JSON 输出的 `voice_source`（`explicit` / `env` / `default_fallback`）标明实际来源——**换音色时必须核对 `voice_source`，防止静默回退**。
+- `--speed` 0.5–2.0（值越大越快）；`--vol` (0,10]；`--pitch` -12~+12 半音（±3~5 内自然，可微调年龄感）。
+- `--emotion`：`happy/sad/angry/fearful/disgusted/surprised/calm/fluent/whisper`；`speech-2.8-hd/turbo` 不支持 `whisper`，`fluent`/`whisper` 仅 2.6 系列。没有情绪强度参数。
+- `--timbre`：最多 4 个音色按权重混合（int 1–100，越高越接近该音色）；使用时 `voice_setting.voice_id` 自动置空。
+- `pronunciation_dict.tone`（需在 payload 层加入）：不改稿纠正读音，如 `Cybercab/赛博卡布`（文本展开）、`郑栅洁/(zheng4)(shan1)杰`（拼音 1-4 声、5 轻声）、`resume/(rɪˈzjuːm)`（IPA）。
 - 停顿标记 `<#x#>`：两段可发音文本之间插入 0.01–99.99 秒停顿，不可连续使用；不支持 SSML。
 - `voice_setting.text_normalization`：开启后优化数字朗读，略增延迟。
 

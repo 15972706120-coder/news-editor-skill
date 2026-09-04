@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.0 — 2026-09-04
+
+- 规范去双轨化：删除 SKILL.md 的 V1 条款与 `10a/15a` 补丁覆盖结构，封面零模糊与 `layout-lock-v2.json` 坐标直接并入正文条款；V1 历史仅留 CHANGELOG。
+- 全量清理 V1 残留：`locked-layout-validation`、`cover-platform-layout-v2`、`editorial-sop`、`quality-standards`、`delivery-gates`、`visual-audio-template` 中的 V1 分板与文字坐标全部更新为 V2；`visual-audio-template` 的配音节从 Edge TTS 规范重写为 MiniMax 定版规范；`environment-setup` 移除 Edge TTS 安装与冒烟步骤。
+- TTS 脚本合并：`minimax_tts.py` 直接暴露 `--voice/--speed/--vol/--pitch/--emotion/--timbre`，删除 `minimax_tts_pro.py` 分身；新增 `voice_source` 输出字段（`explicit/env/default_fallback`），音色静默回退从此可见。
+- 新增 `scripts/check_skill_consistency.py` 一致性门禁（禁用术语、V1 坐标、内部链接、资产引用、Python 语法、锁定文件状态），配 `hooks/pre-commit` 以 `core.hooksPath` 分发；首次运行即清除 11 FAIL / 29 WARN 的规范漂移。
+
 ## 1.6.0 — 2026-09-04
 
 - 默认音色定版为 `Chinese (Mandarin)_News_Anchor`（用户五音色试听对比确认），`Reliable_Executive` 降为备用男声；两个 TTS 脚本默认值同步。

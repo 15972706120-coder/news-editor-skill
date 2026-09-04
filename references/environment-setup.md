@@ -1,6 +1,6 @@
 # News-Editor 新电脑环境与依赖安装手册
 
-> **当前覆盖规则**：配音已迁移到 MiniMax API。Edge TTS 章节只作历史兼容参考，不再是新制作的必需环境；凭据只在实际生成配音前按 [MiniMax TTS 集成](minimax-tts.md) 检查。
+> 配音使用 MiniMax T2A API（见 [MiniMax TTS 集成](minimax-tts.md)）；Edge TTS 已弃用，`check_environment.ps1` 中的 edge-tts 检查仅为旧项目兼容，不是新制作环境的一部分。
 
 > 适用平台：Windows 10/11 x64  
 > 目标：在一台未配置的新电脑上完成热点发现、抖音搜索与下载、新闻女声、Remotion 排版渲染、FFmpeg 合成和最终验收。  
@@ -14,7 +14,8 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 |---|---|---|---|
 | Codex Skill | `news-editor`、`agent-browser`、完整 Remotion Skills | 工作规范、浏览器操作方法、Remotion 编排知识 | 用户 Skills 目录 |
 | 系统运行时 | Node.js、npm/npx、Python、PowerShell | 运行 CLI、Python 模块和预检脚本 | 操作系统 |
-| CLI / Python 包 | `agent-browser`、`yt-dlp`、`edge-tts` | 抖音检索、视频下载、新闻女声 | 全局 npm 或 Python 环境 |
+| CLI / Python 包 | `agent-browser`、`yt-dlp` | 抖音检索、视频下载 | 全局 npm 或 Python 环境 |
+| 语音 API | MiniMax T2A（`scripts/minimax_tts.py`） | 新闻女声配音 | 环境变量凭据，按停点检查 |
 | 原生媒体工具 | FFmpeg、FFprobe、Chrome/Chromium | 转码、混音、抽帧、媒体探测、网页登录和渲染 | 系统 PATH 或显式路径 |
 | 项目依赖与资源 | Remotion、React、TypeScript、微软雅黑、BGM 和参考资产 | 版式、时间轴、渲染、中文排版和声音 | 每个项目及 Skill 包 |
 
@@ -31,20 +32,20 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 - `agent-browser` CLI，并完成第一次 `agent-browser install`。
 - `agent-browser` Codex Skill。
 - `yt-dlp`，CLI 或 `python -m yt_dlp` 至少一种方式可运行。
-- `edge-tts`，CLI 或 `python -m edge_tts` 至少一种方式可运行。
+- MiniMax T2A 凭据（`MINIMAX_API_KEY`、`MINIMAX_API_BASE_URL`）：不需要预装，第一次实际生成配音前按停点检查。
 - FFmpeg 和 FFprobe；FFmpeg 构建必须包含 H.264、AAC 以及新闻流程所需滤镜。
 - Chrome、Chrome for Testing、Chromium 或受支持的 Edge 浏览器。
 - Remotion 完整 Skills，以及每个视频项目自己的 Remotion npm 依赖。
 - 微软雅黑常规和粗体字体，或用户明确批准并同步修改模板的替代中文字体。
 - News-Editor 自带的三个 BGM、视觉参考和验收脚本。
-- 可访问新闻网站、抖音、npm/PyPI、Edge 在线语音服务的网络。
+- 可访问新闻网站、抖音、npm/PyPI、MiniMax API 的网络。
 - 用户在专用浏览器配置中手动完成的抖音登录态。
 
 ### 2.2 条件性或可选能力
 
 - Git：迁移或版本管理 Remotion 工程时推荐，不是渲染本身的硬依赖。
 - 独立 GPU：不是硬依赖；CPU 可以渲染，但速度较慢。
-- 用户自备 TTS：用户提供配音或指定其他语音服务时，可以替代 `edge-tts`。
+- 用户自备配音：用户直接提供音频或指定其他语音服务时，可以替代 MiniMax 生成。
 - 用户自备浏览器自动化：只有明确验证与现有检索规范等价时才能替代 `agent-browser`，默认不替代。
 
 ## 3. 已跑通版本基线
@@ -58,7 +59,7 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 | Python | 3.14.5 |
 | agent-browser | 0.35.0 |
 | yt-dlp | 2026.08.19 |
-| edge-tts | 7.2.8 |
+| MiniMax T2A | speech-2.8-hd（2026-09-04 验证） |
 | FFmpeg / FFprobe | 8.1.1 |
 | Remotion / `@remotion/cli` | 4.0.516 |
 | React / React DOM | 19.1.1 |
@@ -82,7 +83,7 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
   ↓
 安装 agent-browser CLI 与浏览器
   ↓
-安装 yt-dlp、edge-tts
+安装 yt-dlp
   ↓
 安装 agent-browser / Remotion Skills
   ↓
@@ -240,48 +241,31 @@ Test-Path (Join-Path $env:USERPROFILE '.codex\skills\agent-browser\SKILL.md')
 
 第一次真实检索前，按 `references/douyin-news-footage-pipeline.md` 建立专用 Chrome profile，由用户手动登录抖音。不要自动导出或迁移 Cookie。
 
-## 8. 安装视频下载与新闻女声
+## 8. 安装视频下载工具
 
 为了避免 Windows 用户级 Scripts 目录未加入 PATH，News-Editor 优先使用 Python 模块形式：
 
 ```powershell
 python -m pip install --upgrade pip
-python -m pip install --upgrade yt-dlp edge-tts
+python -m pip install --upgrade yt-dlp
 ```
 
 如果使用 `py -3`：
 
 ```powershell
 py -3 -m pip install --upgrade pip
-py -3 -m pip install --upgrade yt-dlp edge-tts
+py -3 -m pip install --upgrade yt-dlp
 ```
 
 验证：
 
 ```powershell
 python -m yt_dlp --version
-python -m edge_tts --version
-python -m edge_tts --list-voices
 ```
 
-官方说明：
+官方说明：[yt-dlp 官方项目和安装方式](https://github.com/yt-dlp/yt-dlp)
 
-- [yt-dlp 官方项目和安装方式](https://github.com/yt-dlp/yt-dlp)
-- [edge-tts 官方项目](https://github.com/rany2/edge-tts)
-- [edge-tts PyPI](https://pypi.org/project/edge-tts/)
-
-默认普通话女声冒烟测试：
-
-```powershell
-$testAudio = Join-Path $env:TEMP 'news-editor-edge-tts-test.mp3'
-python -m edge_tts `
-  --voice 'zh-CN-XiaoxiaoNeural' `
-  --text '新闻编辑环境检测通过' `
-  --write-media $testAudio
-ffprobe -v error -show_entries format=duration -of default=nw=1 $testAudio
-```
-
-`edge-tts` 是在线语音服务客户端，不需要 API Key，但需要网络。项目使用其他语音提供方时，要把提供方、模型、voice ID 和版本写入项目说明，并保持同一项目一致。
+配音不安装本地包：新闻女声由 MiniMax T2A 生成，凭据与调用方式见 [MiniMax TTS 集成](minimax-tts.md)，第一次实际生成配音前才检查环境变量。Edge TTS（`edge-tts`）已弃用，仅旧项目兼容时使用。
 
 ## 9. 安装 Remotion 能力
 
@@ -450,14 +434,14 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 | agent-browser CLI 或 Skill | 已给定链接的事实整理 | 抖音搜索、候选链接提取 |
 | yt-dlp | 搜索与候选链接整理 | 本地素材下载 |
 | FFmpeg / FFprobe | 选题、事实和文案 | 下载合并、媒体质检、裁切、混音、验收 |
-| edge-tts | 无配音草稿、用户自带配音 | 默认新闻女声生成 |
+| MiniMax 凭据 | 无配音草稿、用户自带配音 | 新闻女声配音生成（按停点检查） |
 | Node/npm | 事实、素材下载、FFmpeg 编辑 | Remotion 工程安装和渲染 |
 | Remotion Skill | 已存在工程的机械渲染 | 新工程的可靠设计与时间轴实现 |
 | Remotion npm 包 | FFmpeg 独立处理 | Remotion 预览与渲染 |
 | Chrome/Chromium | 非浏览器事实整理 | 登录态搜索、CDP、Remotion 浏览器渲染 |
 | 微软雅黑 | 选题、素材和音频 | 使用默认视觉模板的最终渲染 |
 | BGM 资产 | 无 BGM 的内部测试 | 默认完整混音交付 |
-| 网络 | 本地已有素材的部分编辑 | 热点发现、抖音搜索、下载、Edge TTS |
+| 网络 | 本地已有素材的部分编辑 | 热点发现、抖音搜索、下载、MiniMax 配音 |
 
 发现缺失项时，Agent 应报告“缺失组件、受影响节点、检测证据和安装命令”，而不是进入受影响节点后反复重试。
 
@@ -478,7 +462,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 - [ ] `agent-browser --version` 与 `agent-browser install` 已完成。
 - [ ] agent-browser Skill 已安装。
 - [ ] `python -m yt_dlp --version` 通过。
-- [ ] `python -m edge_tts --version` 通过。
+- [ ] MiniMax 凭据按停点检查通过（首次配音前）。
 - [ ] FFmpeg、FFprobe、必要编码器和滤镜通过。
 - [ ] Chrome/Chromium 可见浏览器存在。
 - [ ] Remotion 完整 Skills 已安装。

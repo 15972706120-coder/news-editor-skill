@@ -1,0 +1,8 @@
+#!/bin/sh
+# News-Editor skill 一致性门禁（通过 git config core.hooksPath hooks 启用）
+ROOT="$(git rev-parse --show-toplevel)"
+python "$ROOT/scripts/check_skill_consistency.py" || {
+  echo ""
+  echo "一致性检查未通过：先修复上方 FAIL 再提交。"
+  exit 1
+}
