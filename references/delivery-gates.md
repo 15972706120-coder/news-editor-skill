@@ -1,5 +1,7 @@
 # G0–G8 交付质量门
 
+> **当前覆盖规则**：所有门先应用 [当前制作配置 V2](current-production-profile-v2.md)。V2 的 MiniMax、干净封面、清晰度、命名与布局要求替代下文冲突的 V1 条目。
+
 本文件用于完整制作、跨节点制作、草稿复核和最终交付。执行时按顺序推进；前一门未通过，不得把后一节点的产物描述为完成。定向修改只执行受影响的门，但最终仍须重新执行 G5–G8。
 
 ## 状态词
@@ -99,6 +101,8 @@
 
 ## G5｜最终时间轴门
 
+V2 视觉补充门：封面底图若存在任何字幕、标题、日期、账号贴纸、马赛克、像素化或模糊区域，直接 `BLOCKED_VISUAL`；不允许用局部模糊修复封面。正文分板必须是 `1080×344 / 1080×1024 / 1080×552`，坐标与 `layout-lock-v2.json` 一致。每个目标裁切片段放大倍率大于 2.0 直接失败；1.5–2.0 必须在同主题候选中比较并人工确认没有明显失焦、压缩块或运动模糊。
+
 默认时间轴：
 
 ```text
@@ -154,6 +158,8 @@ python scripts/validate_news_video.py <final.mp4> --expected-width 1080 --expect
 最终视觉失败时状态为 `BLOCKED_VISUAL`；事实身份失败时状态为 `BLOCKED_SOURCE`。
 
 ## G8｜交付完整性门
+
+V2 声音与命名补充门：逐页 MiniMax 原始 stem 必须可解码并完成逐字人工听检；最终音轨只含 MiniMax 配音、BGM 和用户明确保留的环境声。`qa-report.json` 记录 model、voice_id、文本哈希、trace_id、人工听检区间和 `platform_voice_policy_review=manual_required`，不得记录 API Key。最终 MP4 basename、主题目录去掉 `N.` 后的名称和人工核对的封面主标题必须三者一致。
 
 每个完整主题至少包含：
 

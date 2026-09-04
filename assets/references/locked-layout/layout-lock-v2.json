@@ -1,0 +1,60 @@
+{
+  "version": "2.0",
+  "status": "active",
+  "basis": "User feedback reference normalized to 1080x1920; footage enlarged and copy group moved down by approximately 200px relative to the supplied reference.",
+  "supersedes": "layout-lock-v1.json",
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "frames": 420
+  },
+  "colors": {
+    "board_gradient_top": "#071529",
+    "board_gradient_bottom": "#0B2D55",
+    "title_yellow": "#FFDE00",
+    "white": "#FFFFFF",
+    "red_emphasis": "#FF1837",
+    "cover_cyan": "#0AEAE6"
+  },
+  "cover": {
+    "background_video": [0, 240, 1080, 1440],
+    "headline_visible_bbox": [158, 1136, 921, 1240],
+    "subline_visible_bbox": [239, 1297, 842, 1376],
+    "handwritten_line_bbox": [135, 1434, 945, 1494],
+    "headline_font_px": 144,
+    "subline_font_px": 112,
+    "frame_overlay": "../cover-frame-lines-v3.png"
+  },
+  "body_page": {
+    "header": [0, 0, 1080, 344],
+    "headline_visible_bbox": [170, 135, 910, 205],
+    "subtitle_bar": [26, 248, 1028, 80],
+    "divider": [0, 340, 1080, 4],
+    "footage": [0, 344, 1080, 1024],
+    "copy_board": [0, 1368, 1080, 552],
+    "section_label": [54, 1408, 156, 48],
+    "page_number_safe_bbox": [900, 1408, 126, 48],
+    "white_copy_safe_bbox": [54, 1498, 766, 116],
+    "red_emphasis_safe_bbox": [54, 1648, 766, 58],
+    "source_safe_bbox": [800, 1838, 226, 30],
+    "bottom_accent": [0, 1912, 1080, 8],
+    "headline_font_px": 64,
+    "subtitle_font_px": 46,
+    "copy_font_px": 48,
+    "red_font_px": 48
+  },
+  "platform": {
+    "right_reserved_from_x": 850,
+    "right_reserved_y": [700, 1810],
+    "red_logo_overlap_max_ratio": 0.25,
+    "red_min_readable_ratio": 0.75
+  },
+  "media_quality": {
+    "preferred_source_short_edge_px": 720,
+    "preferred_max_upscale_ratio": 1.5,
+    "hard_max_upscale_ratio": 2.0,
+    "final_encode_crf_range": [18, 20],
+    "final_pixel_format": "yuv420p"
+  }
+}

@@ -15,15 +15,14 @@ param(
     [int]$Sequence,
 
     [Parameter(Mandatory = $true)]
-    [string]$ChineseTitle,
+    [Alias('ChineseTitle')]
+    [string]$CoverTitle,
 
     [Parameter(Mandatory = $true)]
     [string]$FinalVideo,
 
     [Parameter(Mandatory = $true)]
     [string]$Cover,
-
-    [string]$Variant = '新闻女声',
 
     [switch]$Replace
 )
@@ -53,8 +52,7 @@ $outputPath = Get-NormalizedPath $OutputRoot
 $workPath = Get-NormalizedPath $WorkRoot
 $videoPath = Get-NormalizedPath $FinalVideo
 $coverPath = Get-NormalizedPath $Cover
-$title = $ChineseTitle.Trim()
-$variantName = $Variant.Trim()
+$title = $CoverTitle.Trim()
 
 if ($outputPath -eq $workPath) {
     throw 'OutputRoot and WorkRoot must be different directories.'
@@ -75,21 +73,17 @@ if ([System.IO.Path]::GetExtension($coverPath).ToLowerInvariant() -ne '.png') {
     throw 'Cover must be a PNG file.'
 }
 if ([string]::IsNullOrWhiteSpace($title) -or $title -notmatch '[\p{IsCJKUnifiedIdeographs}]') {
-    throw 'ChineseTitle must contain at least one Chinese character.'
+    throw 'CoverTitle must contain at least one Chinese character.'
 }
-if ([string]::IsNullOrWhiteSpace($variantName)) {
-    throw 'Variant cannot be empty.'
-}
-
 $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
-if ($title.IndexOfAny($invalidChars) -ge 0 -or $variantName.IndexOfAny($invalidChars) -ge 0) {
-    throw 'ChineseTitle or Variant contains invalid Windows filename characters.'
+if ($title.IndexOfAny($invalidChars) -ge 0) {
+    throw 'CoverTitle contains invalid Windows filename characters. Rewrite the cover title before rendering; do not silently rename only the file.'
 }
 
 $dateDir = Join-Path $outputPath $Date
 $topicFolderName = "$Sequence.$title"
 $topicDir = Join-Path $dateDir $topicFolderName
-$destinationVideo = Join-Path $topicDir "$title-$variantName.mp4"
+$destinationVideo = Join-Path $topicDir "$title.mp4"
 $destinationCover = Join-Path $topicDir '封面.png'
 
 Assert-PathInside -Child $dateDir -Parent $outputPath -Label 'Date directory'

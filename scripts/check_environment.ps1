@@ -290,8 +290,8 @@ if ($script:PythonInvocation) {
             file = $script:PythonInvocation.file
             prefix = $script:PythonInvocation.prefix + @('-m', 'edge_tts')
         }
-        Add-Check -Name 'edge-tts' -Category 'speech' -Required $true -Status 'PASS' `
-            -Detail "$($ttsProbe.output) via Python module"
+        Add-Check -Name 'edge-tts-legacy' -Category 'speech' -Required $false -Status 'PASS' `
+            -Detail "$($ttsProbe.output) via Python module；仅供旧项目兼容，新制作使用 MiniMax。"
     }
     else {
         $edgeTtsPath = Resolve-CommandPath 'edge-tts'
@@ -299,27 +299,44 @@ if ($script:PythonInvocation) {
             $directTtsProbe = Invoke-External -FilePath $edgeTtsPath -Arguments @('--version')
             if ($directTtsProbe.exitCode -eq 0) {
                 $script:EdgeTtsInvocation = [pscustomobject]@{ file = $edgeTtsPath; prefix = @() }
-                Add-Check -Name 'edge-tts' -Category 'speech' -Required $true -Status 'PASS' `
-                    -Detail "$($directTtsProbe.output) at $edgeTtsPath"
+                Add-Check -Name 'edge-tts-legacy' -Category 'speech' -Required $false -Status 'PASS' `
+                    -Detail "$($directTtsProbe.output) at $edgeTtsPath；仅供旧项目兼容。"
             }
             else {
-                Add-Check -Name 'edge-tts' -Category 'speech' -Required $true -Status 'FAIL' `
-                    -Detail 'edge-tts 命令和 Python 模块均无法运行。' `
-                    -Fix '运行 python -m pip install --upgrade edge-tts。'
+                Add-Check -Name 'edge-tts-legacy' -Category 'speech' -Required $false -Status 'SKIP' `
+                    -Detail '未启用旧版 Edge TTS；新制作使用 MiniMax。'
             }
         }
         else {
-            Add-Check -Name 'edge-tts' -Category 'speech' -Required $true -Status 'FAIL' `
-                -Detail '未找到 edge-tts Python 模块或命令。' `
-                -Fix '运行 python -m pip install --upgrade edge-tts。'
+            Add-Check -Name 'edge-tts-legacy' -Category 'speech' -Required $false -Status 'SKIP' `
+                -Detail '未安装旧版 Edge TTS；这不会阻塞 MiniMax 制作。'
         }
     }
 }
 else {
     Add-Check -Name 'yt-dlp' -Category 'download' -Required $true -Status 'FAIL' `
         -Detail 'Python 不可用，未继续检查 yt-dlp。' -Fix '先安装 Python，再安装 yt-dlp。'
-    Add-Check -Name 'edge-tts' -Category 'speech' -Required $true -Status 'FAIL' `
-        -Detail 'Python 不可用，未继续检查 edge-tts。' -Fix '先安装 Python，再安装 edge-tts。'
+    Add-Check -Name 'edge-tts-legacy' -Category 'speech' -Required $false -Status 'SKIP' `
+        -Detail 'Python 不可用，未检查旧版 Edge TTS。'
+}
+
+$miniMaxClient = Join-Path $PSScriptRoot 'minimax_tts.py'
+if (Test-Path -LiteralPath $miniMaxClient -PathType Leaf) {
+    Add-Check -Name 'minimax-client' -Category 'speech' -Required $true -Status 'PASS' `
+        -Detail 'MiniMax TTS client is present. API credentials are checked only at the first real voice generation.'
+}
+else {
+    Add-Check -Name 'minimax-client' -Category 'speech' -Required $true -Status 'FAIL' `
+        -Detail 'Missing scripts/minimax_tts.py.' -Fix 'Restore the complete News-Editor Skill package.'
+}
+
+if ([string]::IsNullOrWhiteSpace($env:MINIMAX_API_KEY)) {
+    Add-Check -Name 'minimax-credentials' -Category 'speech' -Required $false -Status 'SKIP' `
+        -Detail 'Deferred until the first real MiniMax voice generation; never paste the key into chat or logs.'
+}
+else {
+    Add-Check -Name 'minimax-credentials' -Category 'speech' -Required $false -Status 'PASS' `
+        -Detail 'MINIMAX_API_KEY is configured in the process environment; value not displayed.'
 }
 
 if ($FfmpegPath) {
@@ -598,7 +615,8 @@ if ($Deep) {
             }
         }
 
-        if ($script:EdgeTtsInvocation) {
+        # Edge TTS is legacy-only. Do not make a network call during the current MiniMax preflight.
+        if ($false -and $script:EdgeTtsInvocation) {
             $ttsTest = Join-Path $tempRoot 'edge-tts-smoke.mp3'
             $ttsResult = Invoke-External -FilePath $script:EdgeTtsInvocation.file -Arguments (
                 $script:EdgeTtsInvocation.prefix + @(
@@ -608,11 +626,11 @@ if ($Deep) {
                 )
             )
             if ($ttsResult.exitCode -eq 0 -and (Test-Path -LiteralPath $ttsTest -PathType Leaf) -and (Get-Item -LiteralPath $ttsTest).Length -gt 1000) {
-                Add-Check -Name 'edge-tts-deep-smoke' -Category 'deep-test' -Required $true -Status 'PASS' `
-                    -Detail '默认普通话女声生成成功。'
+                Add-Check -Name 'edge-tts-deep-smoke-legacy' -Category 'deep-test' -Required $false -Status 'PASS' `
+                    -Detail '旧版 Edge TTS 冒烟成功；新制作仍使用 MiniMax。'
             }
             else {
-                Add-Check -Name 'edge-tts-deep-smoke' -Category 'deep-test' -Required $true -Status 'FAIL' `
+                Add-Check -Name 'edge-tts-deep-smoke-legacy' -Category 'deep-test' -Required $false -Status 'WARN' `
                     -Detail "语音生成失败：$($ttsResult.exception)$($ttsResult.output)" `
                     -Fix '检查网络、edge-tts 版本和 Edge 在线语音服务可达性。'
             }

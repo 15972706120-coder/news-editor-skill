@@ -19,7 +19,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_CONTRACT = SCRIPT_DIR.parent / "assets" / "references" / "locked-layout" / "layout-lock-v1.json"
+DEFAULT_CONTRACT = SCRIPT_DIR.parent / "assets" / "references" / "locked-layout" / "layout-lock-v2.json"
 
 
 def locate(explicit: str | None, name: str) -> str:

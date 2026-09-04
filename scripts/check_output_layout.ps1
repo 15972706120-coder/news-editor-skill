@@ -66,6 +66,9 @@ foreach ($dateDir in $dateDirs) {
         if ($videos.Count -ne 1) {
             Add-Issue -Code 'VIDEO_COUNT' -Path $topicDir.FullName -Message '每条新闻必须且只能有一个最终 MP4。'
         }
+        elseif ($videos[0].BaseName -cne $topicTitle) {
+            Add-Issue -Code 'VIDEO_COVER_TITLE_MISMATCH' -Path $videos[0].FullName -Message '最终 MP4 文件名必须与主题目录中的封面主标题完全一致。'
+        }
         if ($covers.Count -ne 1) {
             Add-Issue -Code 'COVER_COUNT' -Path $topicDir.FullName -Message '每条新闻必须且只能有一个封面.png。'
         }

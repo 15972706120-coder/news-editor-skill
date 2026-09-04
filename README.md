@@ -40,11 +40,11 @@ Skill 允许隐式调用，但完整制作仍包含选题确认、来源核验�
 pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
 ```
 
-完整制作还需要 PowerShell 7、Node.js、Python、agent-browser、yt-dlp、edge-tts、FFmpeg/FFprobe、Chrome、Remotion 和微软雅黑。详细说明见 [环境手册](references/environment-setup.md)。
+完整制作还需要 PowerShell 7、Node.js、Python、agent-browser、yt-dlp、FFmpeg/FFprobe、Chrome、Remotion、微软雅黑，以及在首次实际生成配音前由用户在本机配置的 MiniMax API 环境变量。不要把 API Key 写进仓库或聊天。详细说明见 [当前制作配置](references/current-production-profile-v2.md)、[MiniMax TTS 集成](references/minimax-tts.md)和[环境手册](references/environment-setup.md)。
 
 ## 文件边界
 
-- `outputs/YYYY-MM-DD/N.中文新闻短名/` 只放最终 MP4 和 `封面.png`。
+- `outputs/YYYY-MM-DD/N.封面主标题/` 只放与封面主标题同名的最终 MP4 和 `封面.png`。
 - 原片、工程、音频、预览、日志和 QA 放在同级 `.news-editor-work/`。
 - 不得向 Git 提交 Cookie、浏览器 profile、临时签名地址、下载元数据或新闻生产输出。
 
