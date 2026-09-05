@@ -133,7 +133,7 @@ $runId = [guid]::NewGuid().ToString()
 pwsh -NoProfile -File (Join-Path $skillTarget 'scripts\ensure_latest_skill.ps1') -RunId $runId
 ```
 
-只接受 `LATEST_READY`，或在 `UPDATED_READY_RELOAD` 后重新读取新版 Skill。任何其他状态都停止，不以本地缓存或旧副本继续。
+只接受最终 `LATEST_READY`；`UPDATED_READY_RELOAD` 后重新读取新版 Skill，并用同一 `run_id` 重跑新版脚本复核。若复核时又发生更新则停止，其他失败状态也停止，不以本地缓存或旧副本继续。
 
 不要迁移旧电脑的 Cookie 文件、浏览器主配置或临时签名视频地址。新电脑使用专用浏览器目录，由用户重新登录抖音。
 
@@ -368,6 +368,8 @@ scripts/validate_news_video.py
 $skillRoot = '<当前 Agent 实际加载的 news-editor 根目录>'
 $runId = [guid]::NewGuid().ToString()
 pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\ensure_latest_skill.ps1') -RunId $runId
+if ($LASTEXITCODE -ne 0) { throw '版本核验未通过，停止当前任务。' }
+# Agent 检查返回状态，若发生更新，先重新读取新版规范，再单独执行下行。
 pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
 ```
 

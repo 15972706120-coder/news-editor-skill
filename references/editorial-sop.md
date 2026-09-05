@@ -17,7 +17,7 @@
 
 **动作**：在 N0/N1 和所有任务动作之前，为本次运行生成新 `run_id`，执行 `scripts/ensure_latest_skill.ps1`。`LATEST_READY` 可进入后续节点；`UPDATED_READY_RELOAD` 必须先重新完整读取新版 `SKILL.md`、`config.json` 与本次需要的 references，并确认活动 SHA 等于脚本返回的远端 SHA。任何非零退出码立即记为 `BLOCKED_SKILL_VERSION`；不得在断网、脏工作树、错误远程、分支不符、历史分叉或新版校验失败时使用本机旧版继续。版本门通过后本次运行固定该 commit，运行中不切换规范。
 
-**验收门**：版本门 JSON 属于本次新 `run_id`；状态允许继续；`active_sha == remote_sha`；若发生更新，已完成重新读取；没有执行强制覆盖或使用上次运行记录。
+**验收门**：版本门 JSON 属于本次新 `run_id`；最终状态为 `LATEST_READY`；`active_sha == remote_sha`；若发生更新，已重新读取并用同一 `run_id` 重跑新版 gate。复核时又发生更新则阻塞，不能无限追逐远端。没有执行强制覆盖或使用上次运行记录。
 
 **节点交付**：先在上下文保留完整版本门 JSON；N1 建立工作区后写入 `run-manifest.json`，记录 `run_id`、状态、核验时间、版本和 SHA，不记录凭据。
 

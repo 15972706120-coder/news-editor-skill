@@ -11,9 +11,11 @@ $script:Schema = 'news-editor-version-gate/v1'
 $script:SkillRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $script:TrustedRepository = 'https://github.com/15972706120-coder/news-editor-skill.git'
 $script:TrustedBranch = 'main'
+$script:TrustedRemote = 'origin'
 $script:GitPath = $null
 $script:Repository = $script:TrustedRepository
 $script:Branch = $script:TrustedBranch
+$script:RemoteName = $script:TrustedRemote
 $script:RemoteSha = $null
 $script:LocalSha = $null
 $script:ActiveSha = $null
@@ -119,6 +121,7 @@ function Read-And-ValidateConfig {
 
     $script:Repository = [string]$config.skill_update.repository
     $script:Branch = [string]$config.skill_update.branch
+    $script:RemoteName = [string]$config.skill_update.remote
     $script:NetworkAttempts = [int]$config.skill_update.network_attempts
     if ($TimeoutSeconds -gt 0) {
         $script:TimeoutSeconds = $TimeoutSeconds
@@ -131,6 +134,9 @@ function Read-And-ValidateConfig {
     }
     if ($script:Branch -ne $script:TrustedBranch) {
         throw 'The configured branch is not the trusted News-Editor branch.'
+    }
+    if ($script:RemoteName -ne $script:TrustedRemote) {
+        throw 'The configured remote is not the trusted News-Editor remote.'
     }
     if ([bool]$config.skill_update.allow_stale_on_failure) {
         throw 'Strict version policy requires allow_stale_on_failure=false.'
@@ -245,7 +251,7 @@ function Invoke-VersionGate {
         return New-GateResult -Status 'BLOCKED_INSTALL_INVALID' -ExitCode 12 -Message $_.Exception.Message
     }
 
-    $origin = Invoke-LocalGit -Arguments @('remote', 'get-url', 'origin')
+    $origin = Invoke-LocalGit -Arguments @('remote', 'get-url', $script:RemoteName)
     if ($origin.ExitCode -ne 0 -or (Normalize-GitUrl $origin.Stdout) -ne (Normalize-GitUrl $script:TrustedRepository)) {
         return New-GateResult -Status 'BLOCKED_ORIGIN_MISMATCH' -ExitCode 21 -Message 'The origin remote is not the trusted News-Editor repository.'
     }
@@ -272,7 +278,7 @@ function Invoke-VersionGate {
         return New-GateResult -Status 'LATEST_READY' -ExitCode 0 -Message 'The active News-Editor commit exactly matches GitHub main.'
     }
 
-    $fetch = Invoke-LocalGit -Arguments @('fetch', '--no-tags', 'origin', "refs/heads/$($script:TrustedBranch)") -Seconds $script:TimeoutSeconds
+    $fetch = Invoke-LocalGit -Arguments @('fetch', '--no-tags', $script:RemoteName, "refs/heads/$($script:TrustedBranch)") -Seconds $script:TimeoutSeconds
     if ($fetch.ExitCode -ne 0) {
         return New-GateResult -Status 'BLOCKED_UPDATE_FETCH' -ExitCode 31 -Message 'GitHub was reachable, but the latest commit could not be fetched.'
     }

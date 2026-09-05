@@ -1,5 +1,5 @@
 {
-  "version": "1.9.0",
+  "version": "1.9.1",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
 

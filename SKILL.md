@@ -19,6 +19,8 @@ pwsh -NoProfile -File '<SkillRoot>\scripts\ensure_latest_skill.ps1' -RunId '<本
 
 一次“运行”指一个新的用户请求、新任务、新 Agent、任务重启或从阻塞状态重新启动；同一请求内部连续执行的下载、渲染和重试不重复核验。版本门通过后，本次运行固定使用返回的 commit，运行途中 GitHub 再更新留到下一次运行。N1 建立工作区后，把版本门 JSON 的 `run_id`、状态、核验时间、版本、`remote_sha` 与 `active_sha` 写入 `run-manifest.json`；不得记录凭据。脚本只允许干净工作树上的快进更新，不执行 reset、clean、stash、merge commit 或强制覆盖。
 
+更新后有一次必需复核：返回 `UPDATED_READY_RELOAD` 时，重新读取后须用同一 `run_id` 再运行磁盘上的新版 `ensure_latest_skill.ps1`；最终取得 `LATEST_READY` 才可继续。这确保执行的是新版检查逻辑。若复核时又发生更新，停在 `BLOCKED_SKILL_VERSION`，新运行再核验，避免无限追逐远端。脚本仅检查核心文件与版本契约；完整规范一致性由发布前的 `scripts/check_skill_consistency.py` 检查，不把核心检查称作完整生产验收。
+
 ## 当前默认配置
 
 开始任何新制作或旧项目修订前，必须先读取 [config.json](config.json) 与 [current-production-profile-v2.md](references/current-production-profile-v2.md)。config.json 是全部制作 FACT（输出路径、音色与模型、混音参数、成片规格、坐标锁定文件引用）的唯一机器事实源，具体数值一律以它为准，文档不复述；profile 记录这些配置背后的用户决策与理由。被取代的历史规则只保留在 CHANGELOG 中，供回看旧成片时参考。
@@ -69,7 +71,7 @@ pwsh -NoProfile -File '<SkillRoot>\scripts\ensure_latest_skill.ps1' -RunId '<本
 
 按任务范围执行下列最小闭环：
 
-0. 每次调用先运行 GitHub 最新版本启动门；只有 `LATEST_READY` 或完成重新读取后的 `UPDATED_READY_RELOAD` 才进入后续步骤。
+0. 每次调用先运行 GitHub 最新版本启动门；发生更新时重读并以同一 `run_id` 重跑新版检查，最终只有 `LATEST_READY` 才进入后续步骤。
 1. 对完整制作再通过环境启动门；新电脑、升级后的环境或尚未验证的 Remotion 工程必须运行预检。
 2. 若用户未指定主题，从非国家级来源搜索今日新闻，交付 5–8 个候选、原始信息标题、核验链接和 Top 3 推荐；等待用户选择，或按其明确授权代选。
 3. 建立需求与输入清单，对选定主题完成双来源事实核验、来源排除和授权边界检查，并锁定原始信息标题。

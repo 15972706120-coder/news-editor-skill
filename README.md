@@ -25,6 +25,8 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\ensure_latest_skill.ps1') -
 
 `LATEST_READY` 表示当前 commit 与远端完全一致；`UPDATED_READY_RELOAD` 表示已完成安全快进，Agent 必须重新读取新版 Skill 后再工作。断网、超时、本地改动、错误远程、分支不符、历史分叉或更新后校验失败会严格阻断，不允许用旧版继续。脚本不会执行 reset、clean、stash 或强制覆盖。`main` 只发布通过校验的稳定版，版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
+发生更新后，重新读取规范，再用同一 `run_id` 运行一次新版脚本；只有最终返回 `LATEST_READY` 才开始任务。若复核时远端再次更新，停止并启动新运行。脚本执行核心文件与版本检查；完整规范一致性检查在发布前执行。
+
 如需人工故障恢复，只能在确认工作树干净后执行 `git pull --ff-only`；它不是标准运行入口，也不能代替每次实时核验远端 SHA。
 
 ## 使用
