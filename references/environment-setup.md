@@ -30,6 +30,7 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 - PowerShell 7 或更高版本；使用 `pwsh` 运行预检和制作脚本。
 - Node.js 24 LTS 或兼容的新版本，并包含 npm、npx。
 - Python 3.10 或更高版本。
+- Pillow：封面几何门读取并验证原生 PNG，不调用在线服务；封面节点单独执行下述导入检查，不能仅凭通用环境预检通过认定它已安装。
 - `agent-browser` CLI，并完成第一次 `agent-browser install`。
 - `agent-browser` Codex Skill。
 - `yt-dlp`，CLI 或 `python -m yt_dlp` 至少一种方式可运行。
@@ -275,6 +276,16 @@ python -m yt_dlp --version
 
 官方说明：[yt-dlp 官方项目和安装方式](https://github.com/yt-dlp/yt-dlp)
 
+封面几何门使用同一 Python 环境的 Pillow。先检查，缺失时才安装，不在每次制作中升级：
+
+```powershell
+python -c "import PIL; print(PIL.__version__)"
+# 仅导入失败且安装已获授权时执行：
+python -m pip install Pillow
+```
+
+`py -3` 用户需将这两条命令的 `python` 一并替换为 `py -3`，不要装到另一解释器后跳过检查。缺失时可继续选题与文案，封面几何验收必须停止。
+
 配音不安装本地包：新闻女声由 MiniMax T2A 生成，凭据与调用方式见 [MiniMax TTS 集成](minimax-tts.md)，第一次实际生成配音前才检查环境变量。Edge TTS（`edge-tts`）已弃用，仅旧项目兼容时使用。
 
 ## 9. 安装 Remotion 能力
@@ -443,6 +454,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 | Git 或 GitHub 网络 | 无 | Skill 版本启动门；不得使用无法核验的旧版继续 |
 | agent-browser CLI 或 Skill | 已给定链接的事实整理 | 抖音搜索、候选链接提取 |
 | yt-dlp | 搜索与候选链接整理 | 本地素材下载 |
+| Pillow | 选题、事实与文案 | 原生 PNG 解码与封面几何验收 |
 | FFmpeg / FFprobe | 选题、事实和文案 | 下载合并、媒体质检、裁切、混音、验收 |
 | MiniMax 凭据 | 无配音草稿、用户自带配音 | 新闻女声配音生成（按停点检查） |
 | Node/npm | 事实、素材下载、FFmpeg 编辑 | Remotion 工程安装和渲染 |
@@ -471,6 +483,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 - [ ] `news-editor` 整个 Skill 目录已复制。
 - [ ] Node.js、npm、npx 版本检查通过。
 - [ ] Python 版本检查通过。
+- [ ] 封面节点使用的解释器能够导入 Pillow。
 - [ ] `agent-browser --version` 与 `agent-browser install` 已完成。
 - [ ] agent-browser Skill 已安装。
 - [ ] `python -m yt_dlp --version` 通过。

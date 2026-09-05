@@ -194,6 +194,7 @@ def main() -> int:
         "probe": media,
         "page_frame_counts": counts,
         "cover_frames": args.cover_frames,
+        "cover_evidence_usage": "Encoded MP4 frame and derived crops/thumbnails are QA evidence only; never use as the independent upload cover or source background. Use the lossless master.",
         "structural_checks": structural_checks,
         "frames": frames,
         "full_frame_files": full_frame_files,

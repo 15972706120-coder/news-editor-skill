@@ -51,6 +51,8 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
 
 ## 文件边界
 
+封面制作还需通过 [封面质量门](references/cover-platform-layout-v2.md)：原生无缩放抽帧、实际裁切后的有效像素、等比缩放，以及 100% 无标题底图检查。`scripts/check_cover_geometry.py` 使用 Python + Pillow 检查几何参数，不能代替清晰度或平台审核。保留确认版式和默认比例；不要把缩略图放大上传，也不要忽略平台已提示的“封面模糊或拉伸”。
+
 - 输出区 `<输出根>/YYYY-MM-DD/N.封面主标题/`（输出根见 [config.json](config.json) 的 `output.root`）只放与封面主标题同名的最终 MP4 和 `封面.png`。
 - 原片、工程、音频、预览、日志和 QA 放在项目根的 `.news-editor-work/`。
 - 不得向 Git 提交 Cookie、浏览器 profile、临时签名地址、下载元数据或新闻生产输出。
@@ -68,4 +70,6 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_output_layout.ps1')  
 git -C $skillRoot config core.hooksPath hooks
 ```
 
-`hooks/pre-commit` 会运行 `scripts/check_skill_consistency.py`，拦截被取代的旧术语与旧路径、V1 坐标残留、FACT 复述、失效内部链接与 Python 语法错误。
+`hooks/pre-commit` 会运行 `scripts/check_skill_consistency.py` 与封面几何回归测试，拦截被取代的旧术语与旧路径、V1 坐标残留、FACT 复述、失效内部链接、Python 语法错误及几何门退化。测试仅在开发/发布前运行，不增加每条新闻的完整测试开销。
+
+发布封面相关改动前还须运行 `python scripts/test_cover_geometry.py`。Pillow 缺失时按环境手册安装，不能跳过几何门后宣称已检查。

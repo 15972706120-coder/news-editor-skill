@@ -1,5 +1,5 @@
 {
-  "version": "1.9.1",
+  "version": "1.9.2",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
 
@@ -85,7 +85,13 @@
     "headline_hard_max": 8,
     "subline_fullchar_range": [5, 10],
     "subline_hard_max": 12,
-    "thumbnail_check": "270x360"
+    "thumbnail_check": "270x360",
+    "quality": {
+      "preferred_max_upscale_ratio": 1.0,
+      "hard_max_upscale_ratio": 1.5,
+      "scale_ratio_tolerance": 0.005,
+      "note": "封面专用内部质量门，不是平台公布阈值。原生无缩放抽帧；按裁切后有效像素计算；通过几何检查仍须人工清晰度复核。"
+    }
   },
 
   "bgm_library": [

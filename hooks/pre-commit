@@ -6,3 +6,7 @@ python "$ROOT/scripts/check_skill_consistency.py" || {
   echo "一致性检查未通过：先修复上方 FAIL 再提交。"
   exit 1
 }
+python "$ROOT/scripts/test_cover_geometry.py" || {
+  echo "封面几何门回归测试未通过：修复后再提交。"
+  exit 1
+}

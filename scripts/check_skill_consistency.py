@@ -9,6 +9,7 @@ pre-commit 通过 hooks/pre-commit 调用；FAIL 退出码 1，WARN 退出码 0�
 from __future__ import annotations
 
 import re
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -132,6 +133,38 @@ def check_config(issues: list) -> None:
     if bgm and not (ROOT / bgm).exists():
         issues.append(("FAIL", "config.json", f"mix.bgm_source 指向的文件不存在: {bgm}"))
 
+    quality = data.get("cover", {}).get("quality", {})
+    quality_keys = ("preferred_max_upscale_ratio", "hard_max_upscale_ratio", "scale_ratio_tolerance")
+    valid_quality = all(
+        type(quality.get(key)) in (int, float) and math.isfinite(quality[key]) and quality[key] > 0
+        for key in quality_keys
+    )
+    if not valid_quality:
+        issues.append(("FAIL", "config.json", "cover.quality 的三个几何阈值必须是有限正数"))
+    elif (quality["preferred_max_upscale_ratio"] > quality["hard_max_upscale_ratio"]
+          or quality["scale_ratio_tolerance"] >= 1):
+        issues.append(("FAIL", "config.json", "cover.quality 首选值不得超过硬上限，比例容差必须小于 1"))
+    for filename in ("check_cover_geometry.py", "test_cover_geometry.py"):
+        if not (SCRIPTS_DIR / filename).is_file():
+            issues.append(("FAIL", f"scripts/{filename}", "缺失封面几何门或其回归测试"))
+
+
+def check_cover_policy(issues: list) -> None:
+    # 定向拦截曾导致 Agent 误用的活动条款，不拦截正文底部字幕例外。
+    stale_phrases = (
+        "局部区域允许精确模糊",
+        "只对实际残留的原始文字框做精确局部模糊",
+        "精确局部模糊最后",
+        "只有确实残留的原始文字框允许精确局部模糊",
+        "只有仍残留的原文字区域才允许精确局部模糊",
+        "封面和正文都先尝试换帧、裁切和焦点位移；只允许模糊",
+    )
+    for path in CURRENT_DOCS:
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if any(phrase in line for phrase in stale_phrases):
+                issues.append(("FAIL", f"{path.relative_to(ROOT).as_posix()}:{number}",
+                               "封面零模糊规则冲突；正文字幕例外不得用于封面"))
+
 
 def check_links(issues: list) -> None:
     for path in CURRENT_DOCS:
@@ -179,6 +212,7 @@ def check_active_layout(issues: list) -> None:
 def main() -> int:
     issues: list[tuple[str, str, str]] = []
     check_config(issues)
+    check_cover_policy(issues)
     check_terms(issues)
     check_links(issues)
     check_assets(issues)
