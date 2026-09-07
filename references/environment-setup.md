@@ -1,5 +1,7 @@
 # News-Editor 新电脑环境与依赖安装手册
 
+> 渲染适配：标准三段式现在可使用随包 `render_locked_news.py`（Python/Pillow + FFmpeg，见 [可执行制作链路](executable-production.md)），无需为固定排版新建 Remotion 项目。下文 Remotion/Chrome/npm 渲染要求仅适用于选择 Remotion 的实现；浏览器检索自身的依赖仍保留。选择该实现时预检传 `-Renderer remotion -ProjectPath ...`，没有工程即失败；默认 `-Renderer locked-ffmpeg` 的跳过项不代表 Remotion 已通过。
+
 > 配音使用 MiniMax T2A API（见 [MiniMax TTS 集成](minimax-tts.md)）；Edge TTS 已弃用，`check_environment.ps1` 中的 edge-tts 检查仅为旧项目兼容，不是新制作环境的一部分。
 
 > 适用平台：Windows 10/11 x64  

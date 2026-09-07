@@ -22,10 +22,12 @@
 运行：
 
 ```powershell
-python scripts/minimax_tts.py --text-file <page-01.txt> --output <音频/page-01.wav>
+python scripts/minimax_tts.py --text-file <page-01.txt> --page-id <page-01> --output <音频/page-01.wav> --report <音频/page-01.wav.json>
 ```
 
 客户端调用 `POST <base>/v1/t2a_v2`，Bearer 鉴权，非流式、hex 输出。默认：
+
+实际生效的全部参数和原文写入 TTS manifest；stdout 返回报告路径与 `cache_hit`。相同文本、参数和未改变的WAV可直接复用，正文配音只能经 [统一时间轴](executable-production.md) 校验后混音。`voice_source` 位于 manifest，不能仅看命令行缺省值猜音色。
 
 - model：`speech-2.8-hd`；成本或速度优先时才显式改为 `speech-2.8-turbo`。
 - voice：`Chinese (Mandarin)_News_Anchor`（2026-09-04 用户五音色试听对比后定版）；`Chinese (Mandarin)_Reliable_Executive` 为备用男声，仅在用户点名时使用。

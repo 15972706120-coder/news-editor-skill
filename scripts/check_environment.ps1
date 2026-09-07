@@ -3,6 +3,8 @@
 [CmdletBinding()]
 param(
     [string]$ProjectPath,
+    [ValidateSet('locked-ffmpeg', 'remotion')]
+    [string]$Renderer = 'locked-ffmpeg',
     [string]$FfmpegPath,
     [string]$FfprobePath,
     [switch]$Deep,
@@ -490,10 +492,13 @@ else {
         -Fix '重新复制完整 news-editor Skill 目录，不要只复制 SKILL.md。'
 }
 
-if ([string]::IsNullOrWhiteSpace($ProjectPath)) {
-    Add-Check -Name 'remotion-project' -Category 'render' -Required $false -Status 'WARN' `
-        -Detail '未提供 -ProjectPath；已跳过项目级 Remotion 包和锁文件检查。' `
-        -Fix '创建或复制 Remotion 工程后使用 -ProjectPath 再运行一次。'
+if ($Renderer -eq 'remotion' -and [string]::IsNullOrWhiteSpace($ProjectPath)) {
+    Add-Check -Name 'remotion-project' -Category 'render' -Required $true -Status 'FAIL' `
+        -Detail '选择了 Remotion，但没有可验证的 ProjectPath。' -Fix '传入实际工程，或明确使用内置 locked-ffmpeg 适配器。'
+}
+elseif ([string]::IsNullOrWhiteSpace($ProjectPath)) {
+    Add-Check -Name 'remotion-project' -Category 'render' -Required $false -Status 'SKIP' `
+        -Detail '使用内置 locked-ffmpeg 排版，不依赖 Remotion 工程；这不代表已验证 Remotion。'
 }
 elseif (-not (Test-Path -LiteralPath $ProjectPath -PathType Container)) {
     Add-Check -Name 'remotion-project' -Category 'render' -Required $true -Status 'FAIL' `

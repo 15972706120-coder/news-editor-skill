@@ -81,6 +81,12 @@ CONFIG = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
 
 def main() -> int:
+    if '--timeline' in sys.argv:
+        from mix_timeline_audio import main as timeline_main
+        return timeline_main()
+    if '--legacy' not in sys.argv:
+        raise SystemExit('新制作必须传 --timeline；旧固定延时流程仅允许显式 --legacy 作历史对照，不得作为最终生产验收。')
+    sys.argv.remove('--legacy')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--voice-p1", required=True, type=Path)
     parser.add_argument("--voice-p2", required=True, type=Path)
@@ -123,7 +129,8 @@ def main() -> int:
                            "lufs": round(measured_i, 2), "true_peak_dbfs": round(measured_tp, 2)})
         if lo <= measured_i <= hi:
             break
-        trim += round((target - measured_i) * 0.8, 2)  # 0.8 阻尼防过冲
+        if attempt < max_iter:
+            trim += round((mix_cfg['target_integrated_lufs'] - measured_i) * 0.8, 2)
 
     # 4) 逐页避让差实测（BGM 单轨在播报区间 vs 人声目标）
     check_bgm = Path(str(out) + ".deltachk.wav")
@@ -137,7 +144,7 @@ def main() -> int:
             ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(v)],
             capture_output=True, text=True).stdout.strip())
         b = segment_lufs(check_bgm, start, dur)
-        page_deltas.append(round(target - b, 2))
+        page_deltas.append(round(target + trim - b, 2))
     check_bgm.unlink()
 
     report = {
@@ -153,8 +160,9 @@ def main() -> int:
         "iterations": iterations,
     }
     report["delta_in_tolerance"] = [abs(d - delta) <= tolerance for d in page_deltas]
-    ok = (lo <= report["final_lufs"] <= hi and all(report["delta_in_tolerance"]))
-    report["status"] = "PASS" if ok else "CHECK"
+    ok = (lo <= report["final_lufs"] <= hi and all(report["delta_in_tolerance"])
+          and report['final_true_peak_dbfs'] <= mix_cfg['max_true_peak_dbtp'])
+    report["status"] = "LEGACY_MEASURED_NOT_PRODUCTION" if ok else "CHECK"
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if ok else 3
 

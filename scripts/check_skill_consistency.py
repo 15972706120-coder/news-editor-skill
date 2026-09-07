@@ -148,6 +148,33 @@ def check_config(issues: list) -> None:
         if not (SCRIPTS_DIR / filename).is_file():
             issues.append(("FAIL", f"scripts/{filename}", "缺失封面几何门或其回归测试"))
 
+    video = data.get("video", {})
+    profiles = video.get("duration_profiles", {})
+    standard = profiles.get("standard_seconds")
+    compact = profiles.get("compact_seconds_range")
+    if not (type(standard) in (int, float) and math.isfinite(standard) and standard > 0):
+        issues.append(("FAIL", "config.json", "video.duration_profiles.standard_seconds 必须是有限正数"))
+    if not (isinstance(compact, list) and len(compact) == 2
+            and all(type(v) in (int, float) and math.isfinite(v) and v > 0 for v in compact)
+            and compact[0] < compact[1] < standard):
+        issues.append(("FAIL", "config.json", "紧凑档必须是小于标准档的有效递增时长范围"))
+    if profiles.get("compact_default_pages") != 1:
+        issues.append(("FAIL", "config.json", "紧凑档默认页数必须为 1"))
+    still = video.get("still_media", {})
+    ratio = still.get("max_body_ratio")
+    max_segments = still.get("max_segments")
+    zoom_delta = still.get("min_motion_zoom_delta")
+    max_zoom = still.get("max_motion_zoom")
+    max_shift = still.get("max_anchor_shift")
+    if not (type(ratio) in (int, float) and 0 < ratio < 0.5):
+        issues.append(("FAIL", "config.json", "正文静态素材占比必须大于 0 且低于 50%"))
+    if not (type(max_segments) is int and 0 < max_segments <= 2):
+        issues.append(("FAIL", "config.json", "正文静态素材段数上限必须为 1–2"))
+    if not (type(zoom_delta) in (int, float) and 0 < zoom_delta < 0.2
+            and type(max_zoom) in (int, float) and 1 + zoom_delta <= max_zoom <= 1.2
+            and type(max_shift) in (int, float) and 0 <= max_shift <= 0.1):
+        issues.append(("FAIL", "config.json", "静态素材关键帧缩放或锚点范围无效"))
+
 
 def check_cover_policy(issues: list) -> None:
     # 定向拦截曾导致 Agent 误用的活动条款，不拦截正文底部字幕例外。
@@ -158,6 +185,11 @@ def check_cover_policy(issues: list) -> None:
         "只有确实残留的原始文字框允许精确局部模糊",
         "只有仍残留的原文字区域才允许精确局部模糊",
         "封面和正文都先尝试换帧、裁切和焦点位移；只允许模糊",
+        "封面使用原生无缩放抽帧",
+        "底图必须从下载原片原生无缩放抽帧",
+        "封面底图必须是清晰、对焦准确、主体可辨的真实下载帧",
+        "封面候选帧",
+        "封面适用性和最终决定",
     )
     for path in CURRENT_DOCS:
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):

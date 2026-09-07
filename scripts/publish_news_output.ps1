@@ -23,6 +23,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Cover,
 
+    [Parameter(Mandatory = $true)]
+    [string]$AcceptanceReport,
+
     [switch]$Replace
 )
 
@@ -79,6 +82,27 @@ if ([System.IO.Path]::GetExtension($videoPath).ToLowerInvariant() -ne '.mp4') {
 }
 if ([System.IO.Path]::GetExtension($coverPath).ToLowerInvariant() -ne '.png') {
     throw 'Cover must be a PNG file.'
+}
+$acceptance = Get-Content -LiteralPath $AcceptanceReport -Raw | ConvertFrom-Json
+if ($acceptance.status -ne 'FINAL_READY' -or $acceptance.diagnostic -eq $true) {
+    throw 'Only a reviewed FINAL_READY acceptance report may publish; internal regressions are not deliverables.'
+}
+if ($acceptance.video_sha256 -ne (Get-FileHash -LiteralPath $videoPath -Algorithm SHA256).Hash.ToLowerInvariant() -or
+    $acceptance.cover_sha256 -ne (Get-FileHash -LiteralPath $coverPath -Algorithm SHA256).Hash.ToLowerInvariant() -or
+    $acceptance.cover_title -cne $title) {
+    throw 'Acceptance hashes/title do not match these exact deliverables.'
+}
+foreach ($gate in @('visual','audio','facts','muted_reading','voiced_playback')) {
+    if ($acceptance.review.$gate -ne 'passed') { throw "Missing completed review: $gate" }
+}
+$machinePath = [System.IO.Path]::GetFullPath((Join-Path (Split-Path -Parent (Get-NormalizedPath $AcceptanceReport)) $acceptance.machine_report))
+if ($acceptance.machine_report_sha256 -ne (Get-FileHash -LiteralPath $machinePath -Algorithm SHA256).Hash.ToLowerInvariant()) {
+    throw 'Machine QA report changed after acceptance.'
+}
+$machine = Get-Content -LiteralPath $machinePath -Raw | ConvertFrom-Json
+if ($machine.passed -ne $true -or $machine.diagnostic_only -eq $true -or
+    $machine.validation_scope -ne 'production_machine_checks' -or $machine.sha256 -ne $acceptance.video_sha256) {
+    throw 'Production machine QA failed, is legacy/internal, or belongs to another video.'
 }
 if ([string]::IsNullOrWhiteSpace($title) -or $title -notmatch '[\p{IsCJKUnifiedIdeographs}]') {
     throw 'CoverTitle must contain at least one Chinese character.'

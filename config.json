@@ -1,5 +1,5 @@
 {
-  "version": "1.9.2",
+  "version": "1.10.0",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
 
@@ -67,6 +67,20 @@
     "duration_seconds": 14.0,
     "total_frames": 420,
     "cover_frames": 1,
+    "duration_profiles": {
+      "standard_seconds": 14.0,
+      "compact_seconds_range": [7.0, 9.0],
+      "compact_default_pages": 1,
+      "selection_rule": "素材和信息足够时使用标准档；真实可用视频不足时先压缩信息任务并选择7–9秒紧凑档，不重复、慢放或堆静态图凑14秒"
+    },
+    "still_media": {
+      "max_body_ratio": 0.3,
+      "max_segments": 2,
+      "min_motion_zoom_delta": 0.02,
+      "max_motion_zoom": 1.1,
+      "max_anchor_shift": 0.1,
+      "note": "图片和信息截图仅作少量补充，必须有来源与事实用途，并用克制的关键帧缩放或平移"
+    },
     "crf_range": [18, 20],
     "pixel_format": "yuv420p"
   },
@@ -90,7 +104,7 @@
       "preferred_max_upscale_ratio": 1.0,
       "hard_max_upscale_ratio": 1.5,
       "scale_ratio_tolerance": 0.005,
-      "note": "封面专用内部质量门，不是平台公布阈值。原生无缩放抽帧；按裁切后有效像素计算；通过几何检查仍须人工清晰度复核。"
+      "note": "封面专用内部质量门，不是平台公布阈值。输入必须是单独检索/取得的原始高清图片，不得从视频抽帧；按裁切后有效像素计算；通过几何检查仍须人工清晰度复核。"
     }
   },
 

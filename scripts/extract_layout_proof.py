@@ -10,6 +10,9 @@ import subprocess
 import sys
 from fractions import Fraction
 from pathlib import Path
+from PIL import Image
+from production_contract import load_timeline, sha256, require
+from validate_news_video import extract_qa_frames
 
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -35,7 +38,7 @@ def locate(explicit: str | None, name: str) -> str:
 
 
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, check=True, capture_output=True, text=True, encoding="utf-8")
+    return subprocess.run(command, check=True, capture_output=True, text=True, encoding="utf-8", timeout=120)
 
 
 def parse_counts(value: str) -> list[int]:
@@ -94,31 +97,19 @@ def extract_frame(ffmpeg: str, source: Path, frame: int, target: Path) -> None:
 
 def crop_image(ffmpeg: str, source: Path, box: list[int], target: Path, scale: str | None = None) -> None:
     x, y, width, height = box
-    filters = [f"crop={width}:{height}:{x}:{y}"]
-    if scale:
-        filters.append(f"scale={scale}")
-    run(
-        [
-            ffmpeg,
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-i",
-            str(source),
-            "-vf",
-            ",".join(filters),
-            "-frames:v",
-            "1",
-            "-y",
-            str(target),
-        ]
-    )
+    with Image.open(source) as image:
+        cropped = image.crop((x,y,x+width,y+height))
+        if scale:
+            cropped = cropped.resize(tuple(map(int,scale.split(':'))),Image.Resampling.LANCZOS)
+        cropped.save(target)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
-    parser.add_argument("--page-frame-counts", required=True, help="Comma-separated body page frame counts")
+    parser.add_argument("--page-frame-counts", help="Legacy comma-separated body page frame counts")
+    parser.add_argument('--timeline', type=Path)
+    parser.add_argument('--qa-report', type=Path, help='Reuse exact-hash final video probe and extracted frames')
     parser.add_argument("--cover-frames", type=int, default=1)
     parser.add_argument("--out-dir", required=True, type=Path)
     parser.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
@@ -133,9 +124,20 @@ def main() -> int:
 
     ffmpeg = locate(args.ffmpeg, "ffmpeg")
     ffprobe = locate(args.ffprobe, "ffprobe")
-    counts = parse_counts(args.page_frame_counts)
+    if bool(args.timeline) == bool(args.page_frame_counts):
+        parser.error('Supply --timeline or legacy --page-frame-counts, not both')
+    timeline = load_timeline(args.timeline) if args.timeline else None
+    counts = ([p['end_frame']-p['start_frame'] for p in timeline['pages']] if timeline else parse_counts(args.page_frame_counts))
     contract = json.loads(args.contract.read_text(encoding="utf-8"))
-    media = probe(ffprobe, args.source)
+    verified = None
+    if args.qa_report:
+        verified = json.loads(args.qa_report.read_text(encoding='utf-8'))
+        require(verified.get('sha256') == sha256(args.source), 'QA report refers to another video')
+        require(not timeline or verified.get('timeline_sha256') == sha256(args.timeline), 'QA timeline changed')
+        require(verified.get('passed') is True, 'Cannot reuse failed machine report as structural approval')
+        media = dict(verified['video'], frames=verified['video']['decoded_frames'])
+    else:
+        media = probe(ffprobe, args.source)
     expected = contract["canvas"]
     expected_frames = args.cover_frames + sum(counts)
 
@@ -162,9 +164,21 @@ def main() -> int:
         page_start += count
 
     full_frame_files: dict[str, str] = {}
+    needed = sorted(set(frames.values()))
+    reusable = {}
+    if verified:
+        for name in verified.get('extracted_frames',[]):
+            candidate = Path(name)
+            if candidate.is_file() and verified.get('extracted_frame_sha256',{}).get(name)==sha256(candidate):
+                reusable[int(candidate.stem.split('-')[-1])] = candidate
+    missing = [n for n in needed if n not in reusable]
+    if missing:
+        paths, failed = extract_qa_frames(ffmpeg,args.source,args.out_dir/'frames',missing,media['frames'],120)
+        require(not failed,'Cannot extract requested proof frames')
+        reusable.update({int(Path(p).stem.split('-')[-1]):Path(p) for p in paths})
     for label, frame in frames.items():
         target = args.out_dir / f"{label.replace('_', '-')}.png"
-        extract_frame(ffmpeg, args.source, frame, target)
+        shutil.copyfile(reusable[frame],target)
         full_frame_files[label] = target.name
 
     cover = args.out_dir / full_frame_files["cover"]
@@ -190,6 +204,9 @@ def main() -> int:
 
     report = {
         "source": str(args.source.resolve()),
+        "source_sha256": sha256(args.source),
+        "timeline_sha256": sha256(args.timeline) if timeline else None,
+        "contract_sha256": sha256(args.contract),
         "contract": str(args.contract.resolve()),
         "probe": media,
         "page_frame_counts": counts,

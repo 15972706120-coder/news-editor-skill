@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import binascii
+import hashlib
 import json
 import os
 import random
@@ -19,7 +20,9 @@ import time
 import urllib.error
 import urllib.request
 import wave
+from datetime import datetime, timezone
 from pathlib import Path
+from production_contract import sha256, text_hash
 
 ALLOWED_BASE_URLS = {
     "https://api.minimax.cn",
@@ -45,6 +48,7 @@ def _load_config_defaults() -> tuple[str, str]:
 
 
 DEFAULT_MODEL, DEFAULT_VOICE = _load_config_defaults()
+VOICE_CONFIG = json.loads((Path(__file__).resolve().parent.parent / 'config.json').read_text(encoding='utf-8'))['voice']
 
 
 def fail(message: str, code: int = 1) -> "NoReturn":
@@ -149,6 +153,7 @@ def synthesize(text: str, output: Path, voice: str, voice_source: str,
                     "voice_id": voice or "(timbre_mix)",
                     "voice_source": voice_source,
                     "speed": speed,
+                    "vol": vol,
                     "pitch": pitch,
                     "emotion": emotion,
                     "timbre_weights": timbre,
@@ -179,11 +184,12 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--voice", default=None,
                         help="音色 ID；缺省依次取 MINIMAX_VOICE_ID 环境变量、内置默认音色")
-    parser.add_argument("--speed", type=float, default=1.0, help="0.5–2.0")
-    parser.add_argument("--vol", type=float, default=1.0, help="0–10")
-    parser.add_argument("--pitch", type=int, default=0, help="-12 到 +12 半音")
-    parser.add_argument("--emotion", default=None,
-                        help="happy/sad/angry/fearful/disgusted/surprised/calm/fluent/whisper；缺省由模型自动匹配")
+    parser.add_argument("--speed", type=float, default=VOICE_CONFIG['speed'], help="0.5–2.0")
+    parser.add_argument("--vol", type=float, default=VOICE_CONFIG['vol'], help="0–10")
+    parser.add_argument("--pitch", type=int, default=VOICE_CONFIG['pitch'], help="-12 到 +12 半音")
+    parser.add_argument("--emotion", default=VOICE_CONFIG['emotion'], help="缺省读取 config.voice.emotion")
+    parser.add_argument('--page-id', required=True)
+    parser.add_argument('--report', type=Path, help='默认 <output>.json；复用必须同时验证文本、参数、页号和音频哈希')
     parser.add_argument("--timbre", default=None,
                         help='混合音色 JSON，如 [{"voice_id":"A","weight":70},{"voice_id":"B","weight":30}]；使用时 voice_id 自动置空')
     parser.add_argument("--timeout", type=float, default=60.0)
@@ -216,10 +222,43 @@ def main() -> int:
         voice, voice_source = DEFAULT_VOICE, "default_fallback"
 
     text = args.text if args.text is not None else args.text_file.read_text(encoding="utf-8")
-    print(json.dumps(synthesize(text, args.output, voice, voice_source,
-                                args.speed, args.vol, args.pitch, args.emotion,
-                                timbre, args.timeout, args.attempts),
-                     ensure_ascii=False, indent=2))
+    report_path = args.report or args.output.with_suffix(args.output.suffix + '.json')
+    request = {'text': text, 'text_sha256': text_hash(text),
+               'base_url': os.environ.get('MINIMAX_API_BASE_URL', '').rstrip('/'),
+               'model': os.environ.get('MINIMAX_TTS_MODEL', DEFAULT_MODEL),
+               'voice_id': voice, 'speed': args.speed, 'vol': args.vol, 'pitch': args.pitch,
+               'emotion': args.emotion, 'timbre_weights': timbre, 'language_boost': 'Chinese',
+               'sample_rate_hz': 44100, 'channels': 1, 'format': 'wav'}
+    cache_key = hashlib.sha256(json.dumps(request, ensure_ascii=False, sort_keys=True).encode('utf-8')).hexdigest()
+    if args.output.is_file() and report_path.is_file():
+        try:
+            old = json.loads(report_path.read_text(encoding='utf-8'))
+            with wave.open(str(args.output), 'rb') as wav:
+                valid_wav = wav.getnframes() > 0 and wav.getnframes() == old['audio']['frames'] and wav.getframerate() == old['audio']['sample_rate_hz']
+            if (valid_wav and old['status'] == 'TTS_READY' and old['page_id'] == args.page_id
+                    and old['cache']['key'] == cache_key and old['request'] == request
+                    and old['audio']['sha256'] == sha256(args.output)
+                    and (report_path.parent / old['audio']['path']).resolve() == args.output.resolve()):
+                print(json.dumps({'status': 'TTS_READY', 'cache_hit': True, 'report': str(report_path.resolve())}))
+                return 0
+        except (OSError, ValueError, KeyError, wave.Error, EOFError):
+            pass
+    result = synthesize(text, args.output, voice, voice_source,
+                        args.speed, args.vol, args.pitch, args.emotion, timbre, args.timeout, args.attempts)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest = {'schema_version': 1, 'status': 'TTS_READY', 'page_id': args.page_id, 'voice_source': voice_source,
+                'provider': 'MiniMax T2A v2', 'request': request,
+                'audio': {'path': os.path.relpath(args.output.resolve(), report_path.parent.resolve()),
+                          'sha256': sha256(args.output), 'bytes': result['bytes'],
+                          'frames': result['wav']['frames'], 'sample_rate_hz': result['wav']['sample_rate'],
+                          'channels': result['wav']['channels'],
+                          'duration_seconds': result['wav']['frames'] / result['wav']['sample_rate']},
+                'api': {'trace_id': result['trace_id']},
+                'cache': {'key': cache_key, 'generated_at_utc': datetime.now(timezone.utc).isoformat()}}
+    temporary = report_path.with_suffix(report_path.suffix + '.part')
+    temporary.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
+    temporary.replace(report_path)
+    print(json.dumps({'status': 'TTS_READY', 'cache_hit': False, 'report': str(report_path.resolve())}))
     return 0
 
 

@@ -10,3 +10,7 @@ python "$ROOT/scripts/test_cover_geometry.py" || {
   echo "封面几何门回归测试未通过：修复后再提交。"
   exit 1
 }
+python -m unittest discover -s "$ROOT/scripts" -p 'test_production_contract.py' || {
+  echo "时间轴、声音绑定与视频验收回归失败。"
+  exit 1
+}

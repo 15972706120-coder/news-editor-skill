@@ -1,6 +1,6 @@
 # News-Editor Skill
 
-用于从非国家级媒体与原始发布渠道发现热点，以合格来源的完整标题精准检索抖音素材，并制作、修改和验收竖屏新闻短视频。
+用于从非国家级媒体与原始发布渠道发现热点，以合格来源的完整标题精准检索可追溯视频，另行寻找高清封面图片，并按需用少量图片/信息截图补充正文，制作、修改和验收竖屏新闻短视频。
 
 ## 安装
 
@@ -47,11 +47,11 @@ Skill 允许隐式调用，但完整制作仍包含选题确认、来源核验�
 pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
 ```
 
-完整制作还需要 PowerShell 7、Node.js、Python、agent-browser、yt-dlp、FFmpeg/FFprobe、Chrome、Remotion、微软雅黑，以及在首次实际生成配音前由用户在本机配置的 MiniMax API 环境变量。不要把 API Key 写进仓库或聊天。详细说明见 [当前制作配置](references/current-production-profile-v2.md)、[MiniMax TTS 集成](references/minimax-tts.md)和[环境手册](references/environment-setup.md)。
+完整制作需要 PowerShell 7、Python/Pillow、agent-browser、yt-dlp、FFmpeg/FFprobe、检索用浏览器与 Node.js、微软雅黑，以及 MiniMax API 环境变量。固定版式已有内置渲染器；选择 Remotion 实现时才额外要求其完整工程依赖。不要把 API Key 写进仓库或聊天。执行与升级命令变化见 [可执行制作链路](references/executable-production.md)，环境见 [环境手册](references/environment-setup.md)。
 
 ## 文件边界
 
-封面制作还需通过 [封面质量门](references/cover-platform-layout-v2.md)：原生无缩放抽帧、实际裁切后的有效像素、等比缩放，以及 100% 无标题底图检查。`scripts/check_cover_geometry.py` 使用 Python + Pillow 检查几何参数，不能代替清晰度或平台审核。保留确认版式和默认比例；不要把缩略图放大上传，也不要忽略平台已提示的“封面模糊或拉伸”。
+封面制作还需通过 [封面质量门](references/cover-platform-layout-v2.md)：底图必须是单独检索/提供的原始高清图片，禁止任何视频抽帧；检查实际裁切有效像素、等比缩放和 100% 无标题底图。`scripts/check_cover_geometry.py` 只检查几何，不能替代来源、清晰度、审美或平台审核。
 
 - 输出区 `<输出根>/YYYY-MM-DD/N.封面主标题/`（输出根见 [config.json](config.json) 的 `output.root`）只放与封面主标题同名的最终 MP4 和 `封面.png`。
 - 原片、工程、音频、预览、日志和 QA 放在项目根的 `.news-editor-work/`。
@@ -70,6 +70,6 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_output_layout.ps1')  
 git -C $skillRoot config core.hooksPath hooks
 ```
 
-`hooks/pre-commit` 会运行 `scripts/check_skill_consistency.py` 与封面几何回归测试，拦截被取代的旧术语与旧路径、V1 坐标残留、FACT 复述、失效内部链接、Python 语法错误及几何门退化。测试仅在开发/发布前运行，不增加每条新闻的完整测试开销。
+`hooks/pre-commit` 会运行 `scripts/check_skill_consistency.py`、封面几何回归和时间轴/声音/混合媒体测试，拦截被取代的旧术语与旧路径、V1 坐标残留、FACT 复述、失效内部链接、Python 语法错误、视频帧封面、静态素材超限及几何门退化。测试仅在开发/发布前运行，不增加每条新闻的完整测试开销。需要验证实际编码链时，运行 `scripts/smoke_test_mixed_renderer.py`；它只生成临时 INTERNAL 样片，不是新闻产物。
 
 发布封面相关改动前还须运行 `python scripts/test_cover_geometry.py`。Pillow 缺失时按环境手册安装，不能跳过几何门后宣称已检查。
