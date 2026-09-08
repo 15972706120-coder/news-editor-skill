@@ -53,7 +53,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
 
 ## 文件边界
 
-封面制作还需通过 [封面质量门](references/cover-platform-layout-v2.md)：底图必须是单独检索/提供的原始高清图片，禁止任何视频抽帧；检查实际裁切有效像素、等比缩放和 100% 无标题底图。`scripts/check_cover_geometry.py` 只检查几何，不能替代来源、清晰度、审美或平台审核。
+封面制作还需通过 [封面质量门](references/cover-platform-layout-v2.md)：底图必须是单独检索/提供的原始高清图片，禁止任何视频抽帧；检查实际裁切有效像素、等比缩放和 100% 无标题底图，并以无标题 270×360 缩略图和候选接触表逐项验收技术清晰、主体可辨、主题相关、视觉冲击。`scripts/check_cover_geometry.py` 只检查几何，不能替代人工编辑判断或平台审核。
 
 - 输出区 `<输出根>/YYYY-MM-DD/N.封面主标题/`（输出根见 [config.json](config.json) 的 `output.root`）只放与封面主标题同名的最终 MP4 和 `封面.png`。
 - 原片、工程、音频、预览、日志和 QA 放在项目根的 `.news-editor-work/`。

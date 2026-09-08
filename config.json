@@ -1,5 +1,5 @@
 {
-  "version": "1.11.0",
+  "version": "1.11.1",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
 
@@ -128,6 +128,20 @@
       "hard_max_upscale_ratio": 1.5,
       "scale_ratio_tolerance": 0.005,
       "note": "封面专用内部质量门，不是平台公布阈值。输入必须是单独检索/取得的原始高清图片，不得从视频抽帧；按裁切后有效像素计算；通过几何检查仍须人工清晰度复核。"
+    },
+    "editorial_selection": {
+      "candidate_count_range": [3, 5],
+      "score_scale": [1, 5],
+      "minimum_each_dimension": 4,
+      "minimum_total_score": 17,
+      "dimensions": [
+        "technical_clarity",
+        "subject_legibility",
+        "topic_relevance",
+        "visual_impact"
+      ],
+      "tie_break_order": ["topic_relevance", "visual_impact", "technical_clarity", "subject_legibility"],
+      "note": "四项均为必须实际查看原图、无标题3:4底图和270x360无标题缩略图后的人工编辑评分；任一项低于单项门槛即淘汰，不得用总分补偿。"
     }
   },
 

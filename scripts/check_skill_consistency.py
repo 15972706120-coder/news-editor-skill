@@ -197,6 +197,35 @@ def check_config(issues: list) -> None:
         if not (SCRIPTS_DIR / filename).is_file():
             issues.append(("FAIL", f"scripts/{filename}", "缺失封面几何门或其回归测试"))
 
+    editorial = data.get("cover", {}).get("editorial_selection", {})
+    candidate_range = editorial.get("candidate_count_range")
+    score_scale = editorial.get("score_scale")
+    dimensions = editorial.get("dimensions")
+    tie_break = editorial.get("tie_break_order")
+    minimum_each = editorial.get("minimum_each_dimension")
+    minimum_total = editorial.get("minimum_total_score")
+    expected_dimensions = [
+        "technical_clarity", "subject_legibility", "topic_relevance", "visual_impact",
+    ]
+    if not (isinstance(candidate_range, list) and len(candidate_range) == 2
+            and all(type(v) is int for v in candidate_range)
+            and 2 <= candidate_range[0] <= candidate_range[1] <= 8):
+        issues.append(("FAIL", "config.json", "cover.editorial_selection.candidate_count_range 必须是 2–8 内的递增整数范围"))
+    if not (isinstance(score_scale, list) and len(score_scale) == 2
+            and all(type(v) is int for v in score_scale) and score_scale[0] < score_scale[1]):
+        issues.append(("FAIL", "config.json", "cover.editorial_selection.score_scale 必须是递增整数范围"))
+    if dimensions != expected_dimensions:
+        issues.append(("FAIL", "config.json", "cover.editorial_selection.dimensions 必须完整定义四项封面人工门"))
+    if not isinstance(tie_break, list) or set(tie_break) != set(expected_dimensions) or len(tie_break) != 4:
+        issues.append(("FAIL", "config.json", "cover.editorial_selection.tie_break_order 必须是四项人工门的完整排列"))
+    if isinstance(score_scale, list) and len(score_scale) == 2 and all(type(v) is int for v in score_scale):
+        if not (type(minimum_each) is int and score_scale[0] <= minimum_each <= score_scale[1]):
+            issues.append(("FAIL", "config.json", "cover.editorial_selection.minimum_each_dimension 超出评分范围"))
+        dimension_count = len(expected_dimensions)
+        if not (type(minimum_each) is int and type(minimum_total) is int
+                and minimum_each * dimension_count <= minimum_total <= score_scale[1] * dimension_count):
+            issues.append(("FAIL", "config.json", "cover.editorial_selection.minimum_total_score 与单项门槛或总分上限冲突"))
+
     video = data.get("video", {})
     profiles = video.get("duration_profiles", {})
     standard = profiles.get("standard_seconds")
