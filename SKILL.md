@@ -9,17 +9,17 @@ description: "从非国家级媒体与原始发布渠道发现热点，核验事
 
 ## GitHub 最新版本启动门（任何任务第一步）
 
-每次调用本 Skill，无论是完整制作、已有素材剪辑、定向修改、质检还是只读咨询，在读取 `config.json`、其他 reference 或执行任何任务动作之前，都必须先为本次运行生成新的 `run_id`，并使用 PowerShell 7 运行：
+每个新的用户请求、独立任务、任务重启或从阻塞状态重新启动，无论是完整制作、已有素材剪辑、定向修改、质检还是只读咨询，在读取 `config.json`、其他 reference 或执行任何任务动作之前，都必须先为本次运行生成新的 `run_id`，并使用 PowerShell 7 运行：
 
 ```powershell
 pwsh -NoProfile -File '<SkillRoot>\scripts\ensure_latest_skill.ps1' -RunId '<本次运行GUID>'
 ```
 
-脚本每次实时比较当前安装的 40 位 Git commit 与 GitHub `main`，不以 `VERSION`、本地 `origin/main` 或上一次成功记录代替远端核验。状态为 `LATEST_READY` 才可继续；状态为 `UPDATED_READY_RELOAD` 时，必须丢弃更新前已读内容，重新完整读取更新后的 `SKILL.md`、`config.json` 与本任务需要的 references，并确认活动 commit 等于脚本返回的 `remote_sha`，再开始任务。任何非零退出码都进入 `BLOCKED_SKILL_VERSION`，禁止搜索新闻、下载素材、调用 MiniMax、修改文件、渲染或沿用旧版继续；断网、超时、本地改动、错误远程、分支不符、历史分叉和更新后校验失败都不得降级放行。
+脚本实时比较当前安装的 40 位 Git commit 与 GitHub `main`，不以 `VERSION`、本地 `origin/main` 或上一次成功记录代替远端核验。状态为 `LATEST_READY` 才可继续；状态为 `UPDATED_READY_RELOAD` 时，必须丢弃更新前已读内容，重新完整读取更新后的 `SKILL.md`、`config.json` 与本任务需要的 references，并确认活动 commit 等于脚本返回的 `remote_sha`，再开始任务。任何非零退出码都进入 `BLOCKED_SKILL_VERSION`，禁止搜索新闻、下载素材、调用 MiniMax、修改文件、渲染或沿用旧版继续；断网、超时、本地改动、错误远程、分支不符、历史分叉和更新后校验失败都不得降级放行。
 
-一次“运行”指一个新的用户请求、新任务、新 Agent、任务重启或从阻塞状态重新启动；同一请求内部连续执行的下载、渲染和重试不重复核验。版本门通过后，本次运行固定使用返回的 commit，运行途中 GitHub 再更新留到下一次运行。N1 建立工作区后，把版本门 JSON 的 `run_id`、状态、核验时间、版本、`remote_sha` 与 `active_sha` 写入 `run-manifest.json`；不得记录凭据。脚本只允许干净工作树上的快进更新，不执行 reset、clean、stash、merge commit 或强制覆盖。
+一次“运行”指一个新的用户请求、独立任务、任务重启或从阻塞状态重新启动；同一请求内部连续执行的下载、渲染和重试不重复核验。版本门通过后，本次运行固定使用返回的 commit，运行途中 GitHub 再更新留到下一次运行。需要子智能体时，由根 Agent 在首次联网核验命令中增加 `-ManifestOut '<本次运行工作区>\run-manifest.json'`；只有根结果为 `LATEST_READY` 且返回清单路径与 SHA-256 才能派发。子智能体不得重复联网，只能携带同一 `run_id`、父清单路径/哈希和唯一 `child_id` 运行本地证明；状态为 `CHILD_CONTEXT_READY` 才可开始子任务。独立 Agent、缺失/过期/被改写清单、commit 或核心文件不匹配时不得使用子模式，必须开启新的完整联网版本门。详细命令、角色屏障和任务包见 [子智能体编排规范](references/subagent-orchestration.md)。脚本只允许干净工作树上的快进更新，不执行 reset、clean、stash、merge commit 或强制覆盖。
 
-更新后有一次必需复核：返回 `UPDATED_READY_RELOAD` 时，重新读取后须用同一 `run_id` 再运行磁盘上的新版 `ensure_latest_skill.ps1`；最终取得 `LATEST_READY` 才可继续。这确保执行的是新版检查逻辑。若复核时又发生更新，停在 `BLOCKED_SKILL_VERSION`，新运行再核验，避免无限追逐远端。脚本仅检查核心文件与版本契约；完整规范一致性由发布前的 `scripts/check_skill_consistency.py` 检查，不把核心检查称作完整生产验收。
+更新后有一次必需复核：返回 `UPDATED_READY_RELOAD` 时，重新读取后须用同一 `run_id` 再运行磁盘上的新版 `ensure_latest_skill.ps1`；最终取得 `LATEST_READY` 才可继续。这确保执行的是新版检查逻辑。若复核时又发生更新，停在 `BLOCKED_SKILL_VERSION`，新运行再核验，避免无限追逐远端。父清单只在最终 `LATEST_READY` 后创建，不能由更新前脚本、子智能体或手工 JSON 冒充。脚本仅检查核心文件与版本契约；完整规范一致性由发布前的 `scripts/check_skill_consistency.py` 检查，不把核心检查称作完整生产验收。
 
 ## 当前默认配置
 
@@ -38,7 +38,7 @@ pwsh -NoProfile -File '<SkillRoot>\scripts\ensure_latest_skill.ps1' -RunId '<本
 
 依赖分层如下：`agent-browser` 与 Remotion 既有 Agent Skill 层，也有实际 CLI/npm 运行层；`yt-dlp` 是命令行/Python 包；MiniMax 通过 `scripts/minimax_tts.py` 调用官方 HTTPS API；FFmpeg、FFprobe、Chrome、Node.js、Python 和微软雅黑属于系统环境。
 
-用户未提供明确新闻主题时，先读取并执行 [references/topic-discovery.md](references/topic-discovery.md)。完整制作或跨多个节点的任务，读取 [references/editorial-sop.md](references/editorial-sop.md)。制作封面、正文页面、分页配音或混音时，读取 [references/visual-audio-template.md](references/visual-audio-template.md)；制作封面或准备发布平台预览时还必须读取 [references/cover-platform-layout-v2.md](references/cover-platform-layout-v2.md)。所有封面与正文页面必须再读取 [references/locked-layout-validation.md](references/locked-layout-validation.md)，以其中从用户确认成片抽取的关键帧、分板图和 `layout-lock-v2.json` 为唯一坐标源，并在草稿与最终 MP4 上运行 `scripts/extract_layout_proof.py`。完整制作、草稿复核或最终交付必须读取并执行 [references/delivery-gates.md](references/delivery-gates.md) 的 G0–G8 质量门。任何准备对外发布的成片，读取 [references/quality-standards.md](references/quality-standards.md)。需要组织输出目录、版本或最终交付时，读取 [references/delivery-contract.md](references/delivery-contract.md)。
+用户未提供明确新闻主题时，先读取并执行 [references/topic-discovery.md](references/topic-discovery.md)。完整制作或跨多个节点的任务，读取 [references/editorial-sop.md](references/editorial-sop.md)；需要并行子智能体、批量主题或控制上下文长度时，再读取并执行 [references/subagent-orchestration.md](references/subagent-orchestration.md)，并用 `scripts/orchestration_contract.py` 校验任务包和交接包。制作封面、正文页面、分页配音或混音时，读取 [references/visual-audio-template.md](references/visual-audio-template.md)；制作封面或准备发布平台预览时还必须读取 [references/cover-platform-layout-v2.md](references/cover-platform-layout-v2.md)。所有封面与正文页面必须再读取 [references/locked-layout-validation.md](references/locked-layout-validation.md)，以其中从用户确认成片抽取的关键帧、分板图和 `layout-lock-v2.json` 为唯一坐标源，并在草稿与最终 MP4 上运行 `scripts/extract_layout_proof.py`。完整制作、草稿复核或最终交付必须读取并执行 [references/delivery-gates.md](references/delivery-gates.md) 的 G0–G8 质量门。任何准备对外发布的成片，读取 [references/quality-standards.md](references/quality-standards.md)。需要组织输出目录、版本或最终交付时，读取 [references/delivery-contract.md](references/delivery-contract.md)。
 
 进入抖音素材检索与下载节点时，先沿用已经验证的 `agent-browser → 规范化 /video/<id> 页面链接 → yt-dlp → FFprobe/FFmpeg 质检` 路径。若出现登录态失效、搜索结果抓取失败、链接无法规范化、下载器 403/解析失败、音视频合并失败、文件损坏、可用时长不足，或连续两次尝试仍停留在同一节点，必须读取并执行 [references/douyin-news-footage-pipeline.md](references/douyin-news-footage-pipeline.md)。把它作为下载恢复手册：从其中定义的最近可靠状态继续，不从头盲目重跑，不改用宽泛关键词，不切换为生成画面，也不绕过平台访问限制。普通制作未进入该节点或下载已经顺利完成时，不需要预加载这份长参考。
 
@@ -75,7 +75,7 @@ pwsh -NoProfile -File '<SkillRoot>\scripts\ensure_latest_skill.ps1' -RunId '<本
 
 按任务范围执行下列最小闭环：
 
-0. 每次调用先运行 GitHub 最新版本启动门；发生更新时重读并以同一 `run_id` 重跑新版检查，最终只有 `LATEST_READY` 才进入后续步骤。
+0. 每个用户请求由根 Agent 运行一次 GitHub 最新版本启动门；发生更新时重读并以同一 `run_id` 重跑新版检查，最终只有 `LATEST_READY` 才进入后续步骤。被根 Agent 编排的子智能体以同一父清单完成本地证明，只有 `CHILD_CONTEXT_READY` 才执行其任务；独立调用仍走完整联网门。
 1. 对完整制作再通过环境启动门；新电脑、升级后的环境或尚未验证的 Remotion 工程必须运行预检。
 2. 若用户未指定主题，从非国家级来源搜索今日新闻，交付 5–8 个候选、原始信息标题、核验链接和 Top 3 推荐；等待用户选择，或按其明确授权代选。
 3. 建立需求与输入清单，对选定主题完成双来源事实核验、来源排除和授权边界检查，并锁定原始信息标题。
@@ -91,4 +91,4 @@ pwsh -NoProfile -File '<SkillRoot>\scripts\ensure_latest_skill.ps1' -RunId '<本
 
 以下数值条件以 `config.json` 为唯一事实源：正文三段式分板尺寸（见 `layout` 段引用的锁定文件）、封面使用单独取得的高清图片且零字幕/零模糊/零马赛克、时长档与正文静态素材限额、声音来自 MiniMax（音色见 `voice` 段）+ BGM、输出 MP4 与封面主标题同名；[current-production-profile-v2.md](references/current-production-profile-v2.md) 记录这些配置的决策背景。
 
-只有在以下条件同时满足时才算完成：本次运行的 GitHub 版本门已通过且 `active_sha` 与启动时核验的 `remote_sha` 一致；当前制作所需的环境预检没有必需项失败；事实包与交叉核验完整；用户要求的成片和附属文件均已生成；每个主题至少有 1 条可追溯视频并按需补充有来源的图片/截图，且区分直接证据与场景 B-roll；标准档至少覆盖 2 类场景，紧凑档至少覆盖 1 类直接相关场景；主播/AI 主播/对镜口播为零，普通人物人脸主导片段单段不超过 1.5 秒且合计不超过 20%；正文静态素材不超过 config 限额、均有事实用途和连续关键帧运动，真实视频占正文主要时长；原始标题等干扰文字已移出内容区，保留使用的底部字幕模糊后完全不可辨认；实拍层没有大块黑边或空白；封面使用深海蓝底板、单独取得的高清主题图片与 V3 透明四角框，采用 144px/112px 短标题、非主播且无源文字底图，并通过 270×360 缩略图检查；正文三段式分板尺寸与锁定版式 JSON 一致，每页均有 1–2 行白色说明和 1 行红色重点；草稿和最终 MP4 均已生成 `layout-proof.json` 并实际查看全部分板；最终 MP4 的实际解码帧数、视频流时长、尺寸、帧率、48kHz 双声道音轨、综合响度和真峰值通过检查；逐页人声/BGM 差值合格；标题与正文无错漏；封面和切点符合逐帧要求；必需交付文档齐全；状态为 `FINAL_READY`；最终链接指向通过目录检查的稳定输出文件，且输出区（根目录见 config.json `output.root`）内不存在任何中间文件、散落文件、非日期目录、断号主题或英文主题目录。
+只有在以下条件同时满足时才算完成：根 Agent 的联网版本门为 `LATEST_READY` 且 `active_sha` 与启动时核验的 `remote_sha` 一致；若使用子智能体，每个被采用的交接都来自同一父清单、通过任务包/交接包校验并取得 `CHILD_CONTEXT_READY`；当前制作所需的环境预检没有必需项失败；事实包与交叉核验完整；用户要求的成片和附属文件均已生成；每个主题至少有 1 条可追溯视频并按需补充有来源的图片/截图，且区分直接证据与场景 B-roll；标准档至少覆盖 2 类场景，紧凑档至少覆盖 1 类直接相关场景；主播/AI 主播/对镜口播为零，普通人物人脸主导片段单段不超过 1.5 秒且合计不超过 20%；正文静态素材不超过 config 限额、均有事实用途和连续关键帧运动，真实视频占正文主要时长；原始标题等干扰文字已移出内容区，保留使用的底部字幕模糊后完全不可辨认；实拍层没有大块黑边或空白；封面使用深海蓝底板、单独取得的高清主题图片与 V3 透明四角框，采用 144px/112px 短标题、非主播且无源文字底图，并通过 270×360 缩略图检查；正文三段式分板尺寸与锁定版式 JSON 一致，每页均有 1–2 行白色说明和 1 行红色重点；草稿和最终 MP4 均已生成 `layout-proof.json` 并实际查看全部分板；最终 MP4 的实际解码帧数、视频流时长、尺寸、帧率、48kHz 双声道音轨、综合响度和真峰值通过检查；逐页人声/BGM 差值合格；标题与正文无错漏；封面和切点符合逐帧要求；必需交付文档齐全；状态为 `FINAL_READY`；最终链接指向通过目录检查的稳定输出文件，且输出区（根目录见 config.json `output.root`）内不存在任何中间文件、散落文件、非日期目录、断号主题或英文主题目录。

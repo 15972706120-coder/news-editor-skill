@@ -11,11 +11,11 @@ $skillRoot = Join-Path $env:USERPROFILE '.agents\skills\news-editor'
 git clone https://github.com/15972706120-coder/news-editor-skill.git $skillRoot
 ```
 
-如果多个 Agent 平台必须使用不同的扫描目录，每个目录都必须是该仓库的独立干净克隆，并由启动门各自核对到同一个 GitHub commit；同一平台仍只保留一个发现入口，避免加载歧义。
+如果多个 Agent 平台必须使用不同的扫描目录，每个目录都必须是该仓库的独立干净克隆；独立用户请求各自核对 GitHub，同一编排运行的子智能体则证明父任务固定的 commit。同一平台仍只保留一个发现入口，避免加载歧义。
 
 ## 每次运行前强制核对 GitHub
 
-News-Editor 不是按日期缓存版本。每个新请求、新 Agent、任务重启或阻塞后重启，第一步都会实时比较当前安装 commit 与 GitHub `main`：
+News-Editor 不是按日期缓存版本。每个新用户请求、独立任务、任务重启或阻塞后重启，第一步都会实时比较当前安装 commit 与 GitHub `main`：
 
 ```powershell
 $skillRoot = Join-Path $env:USERPROFILE '.agents\skills\news-editor'
@@ -26,6 +26,8 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\ensure_latest_skill.ps1') -
 `LATEST_READY` 表示当前 commit 与远端完全一致；`UPDATED_READY_RELOAD` 表示已完成安全快进，Agent 必须重新读取新版 Skill 后再工作。断网、超时、本地改动、错误远程、分支不符、历史分叉或更新后校验失败会严格阻断，不允许用旧版继续。脚本不会执行 reset、clean、stash 或强制覆盖。`main` 只发布通过校验的稳定版，版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 发生更新后，重新读取规范，再用同一 `run_id` 运行一次新版脚本；只有最终返回 `LATEST_READY` 才开始任务。若复核时远端再次更新，停止并启动新运行。脚本执行核心文件与版本检查；完整规范一致性检查在发布前执行。
+
+完整制作、多主题批量或需要减少上下文时，根 Agent 可在这次联网核验中增加 `-ManifestOut`，再让子智能体用同一 `run_id`、父清单路径/哈希和唯一 `child_id` 完成本地证明。子智能体取得 `CHILD_CONTEXT_READY` 后无需重复联网；清单过期、被改写、commit 不同或独立启动时必须重新走完整联网门。角色分工、阶段屏障、任务包和交接包见 [子智能体编排规范](references/subagent-orchestration.md)。
 
 如需人工故障恢复，只能在确认工作树干净后执行 `git pull --ff-only`；它不是标准运行入口，也不能代替每次实时核验远端 SHA。
 
@@ -70,6 +72,6 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_output_layout.ps1')  
 git -C $skillRoot config core.hooksPath hooks
 ```
 
-`hooks/pre-commit` 会运行 `scripts/check_skill_consistency.py`、封面几何回归和时间轴/声音/混合媒体测试，拦截被取代的旧术语与旧路径、V1 坐标残留、FACT 复述、失效内部链接、Python 语法错误、视频帧封面、静态素材超限及几何门退化。测试仅在开发/发布前运行，不增加每条新闻的完整测试开销。需要验证实际编码链时，运行 `scripts/smoke_test_mixed_renderer.py`；它只生成临时 INTERNAL 样片，不是新闻产物。
+`hooks/pre-commit` 会运行 `scripts/check_skill_consistency.py`、封面几何、时间轴/声音/混合媒体和子智能体任务包回归，拦截被取代的旧术语与旧路径、V1 坐标残留、FACT 复述、失效内部链接、Python 语法错误、视频帧封面、静态素材超限、跨角色写入及交接哈希错误。测试仅在开发/发布前运行，不增加每条新闻的完整测试开销。需要验证实际编码链时，运行 `scripts/smoke_test_mixed_renderer.py`；它只生成临时 INTERNAL 样片，不是新闻产物。
 
 发布封面相关改动前还须运行 `python scripts/test_cover_geometry.py`。Pillow 缺失时按环境手册安装，不能跳过几何门后宣称已检查。

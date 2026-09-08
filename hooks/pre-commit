@@ -14,3 +14,7 @@ python -m unittest discover -s "$ROOT/scripts" -p 'test_production_contract.py' 
   echo "时间轴、声音绑定与视频验收回归失败。"
   exit 1
 }
+python -m unittest discover -s "$ROOT/scripts" -p 'test_orchestration_contract.py' || {
+  echo "子智能体任务包与交接契约回归失败。"
+  exit 1
+}

@@ -1,5 +1,5 @@
 {
-  "version": "1.10.1",
+  "version": "1.11.0",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
 
@@ -11,6 +11,29 @@
     "allow_stale_on_failure": false,
     "network_timeout_seconds": 12,
     "network_attempts": 2
+  },
+
+  "orchestration": {
+    "enabled": true,
+    "remote_gate_owner": "orchestrator",
+    "child_gate_mode": "pinned_local_sha",
+    "run_manifest_schema": "news-editor-orchestrated-run/v1",
+    "task_packet_schema": "news-editor-task-packet/v1",
+    "handoff_schema": "news-editor-handoff/v1",
+    "run_manifest_max_age_hours": 12,
+    "max_parallel_workers": 3,
+    "max_handoff_decisions": 5,
+    "role_output_roots": {
+      "facts": "lanes/facts",
+      "copy_pacing": "lanes/copy-pacing",
+      "video_scout": "lanes/video",
+      "cover_scout": "lanes/cover",
+      "timeline_editor": "timeline",
+      "audio": "audio",
+      "render": "render",
+      "qa": "qa"
+    },
+    "note": "一个用户请求只由根编排者联网验版；子智能体必须持有同一运行清单及其SHA-256，只做固定commit的本地证明。独立运行、清单缺失、过期或不匹配时不得使用子模式。"
   },
 
   "output": {

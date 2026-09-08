@@ -83,7 +83,7 @@ def check_config(issues: list) -> None:
     except ValueError as error:
         issues.append(("FAIL", "config.json", f"JSON 解析失败: {error}"))
         return
-    for section in ("skill_update", "output", "voice", "mix", "video", "layout", "cover"):
+    for section in ("skill_update", "orchestration", "output", "voice", "mix", "video", "layout", "cover"):
         if section not in data:
             issues.append(("FAIL", "config.json", f"缺少必需段: {section}"))
     version_path = ROOT / "VERSION"
@@ -114,6 +114,39 @@ def check_config(issues: list) -> None:
         if not isinstance(update.get(key), int) or update[key] <= 0:
             issues.append(("FAIL", "config.json", f"skill_update.{key} 必须是正整数"))
 
+    orchestration = data.get("orchestration", {})
+    expected_orchestration = {
+        "enabled": True,
+        "remote_gate_owner": "orchestrator",
+        "child_gate_mode": "pinned_local_sha",
+        "run_manifest_schema": "news-editor-orchestrated-run/v1",
+        "task_packet_schema": "news-editor-task-packet/v1",
+        "handoff_schema": "news-editor-handoff/v1",
+    }
+    for key, expected in expected_orchestration.items():
+        if orchestration.get(key) != expected:
+            issues.append(("FAIL", "config.json", f"orchestration.{key} 必须为 {expected!r}"))
+    max_age = orchestration.get("run_manifest_max_age_hours")
+    workers = orchestration.get("max_parallel_workers")
+    decisions = orchestration.get("max_handoff_decisions")
+    if not isinstance(max_age, int) or not 1 <= max_age <= 24:
+        issues.append(("FAIL", "config.json", "orchestration.run_manifest_max_age_hours 必须为 1–24 小时"))
+    if not isinstance(workers, int) or not 1 <= workers <= 8:
+        issues.append(("FAIL", "config.json", "orchestration.max_parallel_workers 必须为 1–8"))
+    if not isinstance(decisions, int) or not 1 <= decisions <= 8:
+        issues.append(("FAIL", "config.json", "orchestration.max_handoff_decisions 必须为 1–8"))
+    expected_roles = {
+        "facts", "copy_pacing", "video_scout", "cover_scout",
+        "timeline_editor", "audio", "render", "qa",
+    }
+    role_roots = orchestration.get("role_output_roots")
+    if not isinstance(role_roots, dict) or set(role_roots) != expected_roles:
+        issues.append(("FAIL", "config.json", "orchestration.role_output_roots 必须完整定义八个固定角色"))
+    elif len(set(role_roots.values())) != len(role_roots) or any(
+            not isinstance(value, str) or not value or value.startswith(("/", "\\")) or ".." in value
+            for value in role_roots.values()):
+        issues.append(("FAIL", "config.json", "各角色输出根必须是唯一、非空、无路径穿越的相对路径"))
+
     gate_script = ROOT / "scripts/ensure_latest_skill.ps1"
     if not gate_script.exists():
         issues.append(("FAIL", "scripts/ensure_latest_skill.ps1", "缺失 GitHub 最新版本启动门脚本"))
@@ -124,6 +157,22 @@ def check_config(issues: list) -> None:
         config_pos = skill_text.find("## 当前默认配置")
         if gate_pos < 0 or config_pos < 0 or gate_pos > config_pos:
             issues.append(("FAIL", "SKILL.md", "版本启动门必须位于当前配置和所有任务动作之前"))
+        for required_phrase in ("CHILD_CONTEXT_READY", "subagent-orchestration.md", "orchestration_contract.py"):
+            if required_phrase not in skill_text:
+                issues.append(("FAIL", "SKILL.md", f"缺少子智能体编排入口: {required_phrase}"))
+    required_orchestration_files = (
+        ROOT / "references/subagent-orchestration.md",
+        ROOT / "scripts/orchestration_contract.py",
+        ROOT / "scripts/test_orchestration_contract.py",
+    )
+    for required_path in required_orchestration_files:
+        if not required_path.is_file():
+            issues.append(("FAIL", required_path.relative_to(ROOT).as_posix(), "缺失子智能体编排契约文件"))
+    if gate_script.exists():
+        gate_text = gate_script.read_text(encoding="utf-8")
+        for required_phrase in ("ParentRunManifest", "ParentRunManifestSha256", "CHILD_CONTEXT_READY"):
+            if required_phrase not in gate_text:
+                issues.append(("FAIL", "scripts/ensure_latest_skill.ps1", f"缺少子版本证明字段: {required_phrase}"))
     if not str(data.get("output", {}).get("root", "")):
         issues.append(("FAIL", "config.json", "output.root 为空"))
     lock = data.get("layout", {}).get("active_lock_file", "")
