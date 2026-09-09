@@ -6,7 +6,7 @@
 
 发现新闻、核验事实、检索真实素材、制作高清封面、完成剪辑与声音，并以逐帧质量门交付 9:16 新闻视频。
 
-[![Version](https://img.shields.io/badge/version-1.11.2-00DCE6?style=flat-square)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.11.3-00DCE6?style=flat-square)](VERSION)
 ![Status](https://img.shields.io/badge/status-active-2EA44F?style=flat-square)
 ![Canvas](https://img.shields.io/badge/canvas-1080%C3%971920-FFD400?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?style=flat-square)
@@ -15,13 +15,13 @@
 
 </div>
 
-![News-Editor 成片接触表](assets/references/finished-video-contact-sheet.png)
-
 ## 简介
 
 News-Editor 是一个面向 Codex 与兼容 Agent 平台的新闻视频生产 Skill。它将容易失控的“搜热点—找素材—写文案—配音—剪辑—验收”流程，收敛为一套有来源、有时间轴、有预览证据、可以继续修改的制作系统。
 
 它不是简单套模板，也不是让 Agent 生成几张新闻风图片。News-Editor 以真实、可追溯的新闻素材为主体，使用固定版式与确定性脚本完成渲染，并要求机器检查和人工视觉/听觉复核同时通过后才允许发布。
+
+![News-Editor 新闻短视频工作流](assets/showcase/workflow-overview.png)
 
 适合：
 
@@ -78,7 +78,8 @@ News-Editor
 ├─ scripts/                 # 版本门、时间轴、渲染、混音、合成和质量检查
 ├─ assets/
 │  ├─ audio/                # 内置新闻 BGM
-│  └─ references/           # 固定版式、平台遮挡与合格成片参考
+│  ├─ references/           # 固定版式、平台遮挡与合格成片参考
+│  └─ showcase/             # README 使用的真实成片与多主题截图
 ├─ agents/openai.yaml       # Skill 展示名称与调用提示
 └─ hooks/pre-commit         # 发布前一致性与回归门禁
 ```
@@ -94,33 +95,58 @@ News-Editor
 
 ### 完整视频
 
-点击下方接触表，打开仓库内的完整 9:16 参考视频：
-
-<div align="center">
-
-[![点击播放 News-Editor 完整参考视频](assets/references/finished-video-contact-sheet.png)](assets/references/finished-video-reference.mp4)
-
-**▶ 点击图片播放完整参考视频**
-
-</div>
-
-> 演示文件用于展示剪辑、分页、文字层级和镜头切换。新闻生产时仍须使用当次检索、核验并登记的素材。
-
-### 关键画面
+以下三条均为 1080×1920、30fps 的完整 9:16 成片。点击封面即可打开对应视频：
 
 <table>
   <tr>
     <td width="33%" align="center">
-      <img src="assets/references/locked-layout/reference-cover-frame.png" alt="独立图片封面示例" width="260"><br>
-      <strong>封面</strong><br>短标题、高清主体、四角框
+      <a href="assets/showcase/season-change.mp4"><img src="assets/showcase/season-change-cover.png" alt="一夜换季视频封面" width="250"></a><br>
+      <strong>▶ 一夜换季</strong><br>天气 · 14 秒
     </td>
     <td width="33%" align="center">
-      <img src="assets/references/locked-layout/reference-page1-frame.png" alt="正文第一页示例" width="260"><br>
-      <strong>第一页</strong><br>标题区、实拍区、白字与红字
+      <a href="assets/showcase/food-streaming.mp4"><img src="assets/showcase/food-streaming-cover.png" alt="叫停畸形吃播视频封面" width="250"></a><br>
+      <strong>▶ 叫停畸形吃播</strong><br>社会治理 · 14 秒
     </td>
     <td width="33%" align="center">
-      <img src="assets/references/locked-layout/reference-page2-frame.png" alt="正文第二页示例" width="260"><br>
-      <strong>第二页</strong><br>内容驱动分页与镜头衔接
+      <a href="assets/showcase/best-rest.mp4"><img src="assets/showcase/best-rest-cover.png" alt="最好的休息视频封面" width="250"></a><br>
+      <strong>▶ 最好的休息</strong><br>生活方式 · 14 秒
+    </td>
+  </tr>
+</table>
+
+> 演示文件用于展示剪辑、分页、文字层级和镜头切换。新闻生产时仍须使用当次检索、核验并登记的素材。
+
+### 多主题正文画面
+
+每张图都从上述成片的不同时间点独立截取，用于同时观察素材选择、三段式布局、分页和红白文字层级，不再使用同一帧重复拼接的接触表。
+
+<table>
+  <tr>
+    <td width="33%" align="center">
+      <img src="assets/showcase/season-change-page1.jpg" alt="一夜换季第一页" width="250"><br>
+      <strong>一夜换季 · 01</strong><br>天气实景与首层事实
+    </td>
+    <td width="33%" align="center">
+      <img src="assets/showcase/food-streaming-page1.jpg" alt="叫停畸形吃播第一页" width="250"><br>
+      <strong>叫停畸形吃播 · 01</strong><br>事件主体与人物动作
+    </td>
+    <td width="33%" align="center">
+      <img src="assets/showcase/best-rest-page1.jpg" alt="最好的休息第一页" width="250"><br>
+      <strong>最好的休息 · 01</strong><br>反常识切入与场景证据
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" align="center">
+      <img src="assets/showcase/season-change-page2.jpg" alt="一夜换季第二页" width="250"><br>
+      <strong>一夜换季 · 02</strong><br>风险提示与场景切换
+    </td>
+    <td width="33%" align="center">
+      <img src="assets/showcase/food-streaming-page2.jpg" alt="叫停畸形吃播第二页" width="250"><br>
+      <strong>叫停畸形吃播 · 02</strong><br>补充案例与结论重点
+    </td>
+    <td width="33%" align="center">
+      <img src="assets/showcase/best-rest-page2.jpg" alt="最好的休息第二页" width="250"><br>
+      <strong>最好的休息 · 02</strong><br>相关场景发散与行动建议
     </td>
   </tr>
 </table>
