@@ -321,6 +321,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--report must not overwrite the input, timeline, or config")
     source_hash = sha256_file(source)
     assembly = None
+    render_report = None
+    required_supersample = None
     if timeline:
         assembly = json.loads(args.assembly_report.read_text(encoding='utf-8'))
         if assembly.get('output_sha256') != source_hash or assembly.get('timeline_sha256') != sha256_file(args.timeline):
@@ -328,6 +330,8 @@ def main(argv: list[str] | None = None) -> int:
         for key in ('mix_report','render_report'):
             if sha256_file(Path(assembly[key])) != assembly[key+'_sha256']:
                 parser.error('Assembly source report changed: '+key)
+        render_report = json.loads(Path(assembly['render_report']).read_text(encoding='utf-8'))
+        required_supersample = json.loads(args.config.read_text(encoding='utf-8-sig'))['video']['still_media']['motion_supersample']
 
     ffprobe = locate(args.ffprobe, "ffprobe")
     probe = run(
@@ -374,6 +378,13 @@ def main(argv: list[str] | None = None) -> int:
         checks.append(check("mp4_container", data.get("format", {}).get("format_name"), "mp4",
                             "mp4" in data.get("format", {}).get("format_name", "").split(",") and source.suffix.lower() == ".mp4"))
         checks.append(check("timeline_page_intervals", timeline["pages"], "contiguous [1,total_frames) coverage", True))
+        if any(clip.get("media_type") in ("image", "screenshot") for clip in timeline.get("clips") or []):
+            actual_supersample = (render_report or {}).get("still_motion_supersample")
+            checks.append(check(
+                "still_motion_supersample", actual_supersample,
+                f"whole-number factor >= {required_supersample} so keyframe motion stays sub-pixel smooth",
+                type(actual_supersample) is int and actual_supersample >= required_supersample,
+            ))
 
     if args.expected_duration is not None:
         checks.append(

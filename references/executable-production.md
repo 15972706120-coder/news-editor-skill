@@ -8,13 +8,13 @@
 
 必需字段：
 
-- 顶层：`schema_version, fps, total_frames, cover_frames, duration_profile, audio_mode, headline, subtitle, pages`；渲染还需 `cover, clips`。`duration_profile=standard|compact`，对应范围只读 config；当前标准音频模式为 `tts_bgm`。
+- 顶层：`schema_version, fps, total_frames, cover_frames, duration_profile, audio_mode, headline, subtitle, source_label, pages`；渲染还需 `cover, clips`。`duration_profile=standard|compact`，对应范围只读 config；当前标准音频模式为 `tts_bgm`。`source_label` 是本条新闻的来源小字（如“界面新闻/财联社”），渲染在每页右下角 `source_safe_bbox`；`headline` 与 `subtitle` 都不得包含 `source_label` 中的任何媒体名——新闻来源永远不进顶部标题区。
 - 每页：`id, start_frame, end_frame, white_lines`（1–2行）、`red_emphasis`（单独1行）、`narration, voice`。
 - 每页还需 `timing={information_task, reading_hold_seconds, reading_basis, cut_reason}`。三个文字字段（information_task、reading_basis、cut_reason）不得为空；reading_hold_seconds 是有限正数，含读完红字后的理解停留；不足其向上取整帧数时脚本直接拦截。初稿可记录读稿估计，不能把估计写成已经完成的手机播放复核。
 - `voice`：`path, manifest, start_frame, duration_seconds, text_sha256, audio_sha256`；时长来自该 WAV 的采样帧数，哈希来自本次 TTS 报告，不能手填估算。
 - 旁白默认与白字+红字一致，只忽略标点与排版差异；独立改写旁白时必须有 `narration_override_reason, claim_ids, narration_reviewed=true`，并逐页对照事实核验。否定词、数字和主体变化不能被“意思差不多”放行。
 - 视频片段：`media_type=video, path, source_sha256, source_in_seconds, start_frame, end_frame, page_id, crop, supports_claim`。标准适配器 speed=1，不重复或变速凑时长。
-- 静态片段：`media_type=image|screenshot`，没有 source_in_seconds 和 blur；除通用字段外需 `acquisition_method, rights_basis, source_url`（用户提供可免 URL）与 `motion={start_zoom,end_zoom,start_anchor,end_anchor,easing}`。截图另需 `intentional_text_reviewed=true, claim_ids`。数量、正文占比、缩放与锚点位移只读 config；视频帧占比必须大于零。
+- 静态片段：`media_type=image|screenshot`，没有 source_in_seconds 和 blur；除通用字段外需 `acquisition_method, rights_basis, source_url`（用户提供可免 URL）与 `motion={start_zoom,end_zoom,start_anchor,end_anchor,easing}`。截图另需 `intentional_text_reviewed=true, claim_ids`。数量、正文占比、缩放与锚点位移只读 config；视频帧占比必须大于零。静态段运动由渲染器按 config `video.still_media.motion_supersample`（整数倍）先超采样再输出，render 报告记录 `still_motion_supersample`，最终机器验收会校验该字段不低于 config 值；不超采样的缩放动画因整像素采样而逐帧卡顿，视为渲染失败。
 - 可选 `blur=[x,y,w,h]` 仅用于等比填满后**实拍板局部坐标**中的底部字幕，不能填成整张画布坐标；必须实际检查原字是否不可辨及边缘。移动字幕应拆段跟踪，不得扩大模糊区兜底。
 - `cover`：`source_kind=image, derived_from_video=false, path, source_sha256, crop, headline, subline, acquisition_method, source_url, rights_basis, selection_reason, clean_image_reviewed`。禁止 source_in_seconds；渲染器直接读取独立图片，不调用视频抽帧。声明已查看不能自动证明清晰、美观或相关，仍需独立封面质量证据。
 
@@ -96,6 +96,7 @@ FFmpeg 相关命令均可传 `--ffmpeg <实际可执行文件>`，需要探针�
   "status": "FINAL_READY",
   "diagnostic": false,
   "cover_title": "已审核的封面主标题",
+  "cover_title_full": "封面主标题，封面副标题（与最终 MP4 文件名逐字一致）",
   "video_sha256": "实际成片哈希",
   "cover_sha256": "独立封面哈希",
   "machine_report": "qa.json",
@@ -104,6 +105,6 @@ FFmpeg 相关命令均可传 `--ffmpeg <实际可执行文件>`，需要探针�
 }
 ```
 
-示例不是默认通过值；只有实际看过分板/切点/手机预览、听过每页原声及混音、核过事实并完成全部 G0–G8 才能填写。`muted_reading` 和 `voiced_playback` 分别对应手机尺寸正常速度的静音阅读与带声音播放；逐页证据需注明完整播放区间、是否读完红字、重要限制是否完整、是否空等及换页结论。未做写 not_checked 并停止发布。证据路径和结论保留原有 QA 清单中。`publish_news_output.ps1` 必须传 `-AcceptanceReport`，会核对标题、当前成片/封面哈希、机器检查范围、诊断标记和人工门，拒绝只凭“文件存在”交付。
+示例不是默认通过值；只有实际看过分板/切点/手机预览、听过每页原声及混音、核过事实并完成全部 G0–G8 才能填写。`muted_reading` 和 `voiced_playback` 分别对应手机尺寸正常速度的静音阅读与带声音播放；逐页证据需注明完整播放区间、是否读完红字、重要限制是否完整、是否空等及换页结论。未做写 not_checked 并停止发布。证据路径和结论保留原有 QA 清单中。`publish_news_output.ps1` 必须同时传 `-CoverTitle <封面主标题>`、`-CoverSubtitle <封面副标题>` 和 `-AcceptanceReport`，脚本以“主标题，副标题”的完整封面标题命名最终 MP4，并核对标题、当前成片/封面哈希、机器检查范围、诊断标记和人工门，拒绝只凭“文件存在”交付。
 
 维护开发与生产启动区分：先在实际安装版完成 GitHub 版本门，记录开发基线；隔离开发工作树上的修复、测试不会中途再次拉取覆盖代码。新生产任务仍严格从 GitHub 最新版启动；不能拿开发状态代替已发布版本。

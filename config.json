@@ -1,5 +1,5 @@
 {
-  "version": "1.11.3",
+  "version": "1.12.0",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
 
@@ -39,8 +39,11 @@
   "output": {
     "root": "D:\\每日新闻",
     "date_dir_pattern": "YYYY-MM-DD（北京时间生产日期）",
-    "topic_dir_pattern": "{sequence}.{cover_title}",
-    "final_video_name": "{cover_title}.mp4",
+    "topic_dir_pattern": "{sequence}.{cover_title_short}",
+    "final_video_name": "{cover_title_full}.mp4",
+    "cover_title_full_pattern": "{cover_headline}，{cover_subline}",
+    "cover_title_short_definition": "封面主标题，用作主题目录短名",
+    "cover_title_full_definition": "完整封面标题 = 封面主标题 + 全角逗号 + 封面副标题，与封面两行文字逐字一致，用作最终 MP4 文件名",
     "cover_name": "封面.png"
   },
 
@@ -102,7 +105,8 @@
       "min_motion_zoom_delta": 0.02,
       "max_motion_zoom": 1.1,
       "max_anchor_shift": 0.1,
-      "note": "图片和信息截图仅作少量补充，必须有来源与事实用途，并用克制的关键帧缩放或平移"
+      "motion_supersample": 4,
+      "note": "图片和信息截图仅作少量补充，必须有来源与事实用途，并用克制的关键帧缩放或平移；关键帧运动渲染前必须先按 motion_supersample 整数倍超采样，再由 zoompan 输出到目标尺寸，禁止在目标分辨率上直接采样（整像素抖动会造成可见卡顿）"
     },
     "crf_range": [18, 20],
     "pixel_format": "yuv420p"

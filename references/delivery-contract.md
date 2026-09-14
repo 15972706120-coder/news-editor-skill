@@ -1,6 +1,6 @@
 # 交付与版本规范
 
-> **当前覆盖规则**：最终 MP4 必须按 [当前制作配置 V2](current-production-profile-v2.md) 与封面主标题同名，不再使用 `<标题>-<变体>.mp4`。
+> **当前覆盖规则**：最终 MP4 必须按 [当前制作配置 V2](current-production-profile-v2.md) 与完整封面标题同名（封面主标题 + 全角逗号 + 封面副标题），不再使用 `<标题>-<变体>.mp4`，也不只使用主标题。
 
 ## 双目录硬约束
 
@@ -19,13 +19,13 @@
 <输出根>\
 └─ YYYY-MM-DD/
    ├─ 1.封面主标题/
-   │  ├─ 封面主标题.mp4
+   │  ├─ 封面主标题，封面副标题.mp4
    │  └─ 封面.png
    ├─ 2.封面主标题/
-   │  ├─ 封面主标题.mp4
+   │  ├─ 封面主标题，封面副标题.mp4
    │  └─ 封面.png
    └─ 3.封面主标题/
-      ├─ 封面主标题.mp4
+      ├─ 封面主标题，封面副标题.mp4
       └─ 封面.png
 ```
 
@@ -33,10 +33,10 @@
 
 - 输出根目录只允许 `YYYY-MM-DD` 日期目录，不允许散落文件或其他目录。
 - 日期使用北京时间的实际生产日期；日期下一层只允许新闻主题目录，不允许散落文件。
-- 主题目录命名为 `N.<cover_title_canonical>`，`N` 按当日完成生产并输出的顺序从 1 连续递增；标题必须就是封面主标题。
+- 主题目录命名为 `N.<cover_title_short>`，`N` 按当日完成生产并输出的顺序从 1 连续递增；短名使用封面主标题，不得使用英文 slug。
 - 一个主题目录默认恰好包含一个最终 MP4 和一个 `封面.png`，不得有子目录。
 - `封面.png` 来自单独检索/提供的原始高清图片所制作的无损 9:16 母版；禁止用视频帧、播放器截图、放大缩略图或成片反抽帧。其他比例仍按 [封面比例规则](cover-platform-layout-v2.md) 导出，输出区只保留选定上传图。
-- 最终 MP4 固定为 `<cover_title_canonical>.mp4`；文件 basename 必须与主题目录去掉 `N.` 后完全一致，不带任何声音、时长或版本后缀。
+- 最终 MP4 固定为 `<cover_title_full>.mp4`；`cover_title_full` = 封面主标题 + 全角逗号 + 封面副标题，与封面两行文字逐字一致（模式见 config.json `output.cover_title_full_pattern`），不带任何声音、时长或版本后缀。文件名必须以主题目录去掉 `N.` 后的短名开头，`check_output_layout.ps1` 按此校验。
 - 只有用户明确需要时才可额外放入 `发布文案.txt`、`来源说明.md` 或 `配音.wav`。其他文件一律禁止。
 - 脚本、源码、依赖、截图、测试素材、下载原片、接触表、预览帧、日志、缓存、QA 报告和历史版本不得进入输出区。
 
@@ -72,10 +72,12 @@ pwsh scripts/publish_news_output.ps1 `
   -Date YYYY-MM-DD `
   -Sequence 1 `
   -CoverTitle 封面主标题 `
+  -CoverSubtitle 封面副标题 `
   -FinalVideo <内部最终版.mp4> `
   -Cover <内部封面.png> `
   -AcceptanceReport <acceptance.json>
   # -OutputRoot 缺省从 config.json 的 output.root 读取
+  # 脚本以“主标题，副标题”命名最终 MP4，并与 acceptance.json 的 cover_title_full 核对
 
 pwsh scripts/check_output_layout.ps1   # 输出根目录同样缺省从 config.json 读取
 ```

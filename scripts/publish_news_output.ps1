@@ -18,6 +18,9 @@ param(
     [string]$CoverTitle,
 
     [Parameter(Mandatory = $true)]
+    [string]$CoverSubtitle,
+
+    [Parameter(Mandatory = $true)]
     [string]$FinalVideo,
 
     [Parameter(Mandatory = $true)]
@@ -64,6 +67,10 @@ $workPath = Get-NormalizedPath $WorkRoot
 $videoPath = Get-NormalizedPath $FinalVideo
 $coverPath = Get-NormalizedPath $Cover
 $title = $CoverTitle.Trim()
+$subtitle = $CoverSubtitle.Trim()
+# 完整封面标题 = 主标题 + 全角逗号 + 副标题，与封面两行文字逐字一致，作为最终 MP4 文件名。
+if (-not $subtitle) { throw 'CoverSubtitle is required; the cover subtitle is part of the canonical video file name.' }
+$fullTitle = "$title，$subtitle"
 
 if ($outputPath -eq $workPath) {
     throw 'OutputRoot and WorkRoot must be different directories.'
@@ -89,8 +96,8 @@ if ($acceptance.status -ne 'FINAL_READY' -or $acceptance.diagnostic -eq $true) {
 }
 if ($acceptance.video_sha256 -ne (Get-FileHash -LiteralPath $videoPath -Algorithm SHA256).Hash.ToLowerInvariant() -or
     $acceptance.cover_sha256 -ne (Get-FileHash -LiteralPath $coverPath -Algorithm SHA256).Hash.ToLowerInvariant() -or
-    $acceptance.cover_title -cne $title) {
-    throw 'Acceptance hashes/title do not match these exact deliverables.'
+    $acceptance.cover_title -cne $title -or $acceptance.cover_title_full -cne $fullTitle) {
+    throw 'Acceptance hashes/titles do not match these exact deliverables.'
 }
 foreach ($gate in @('visual','audio','facts','muted_reading','voiced_playback')) {
     if ($acceptance.review.$gate -ne 'passed') { throw "Missing completed review: $gate" }
@@ -108,14 +115,14 @@ if ([string]::IsNullOrWhiteSpace($title) -or $title -notmatch '[\p{IsCJKUnifiedI
     throw 'CoverTitle must contain at least one Chinese character.'
 }
 $invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
-if ($title.IndexOfAny($invalidChars) -ge 0) {
-    throw 'CoverTitle contains invalid Windows filename characters. Rewrite the cover title before rendering; do not silently rename only the file.'
+if ($title.IndexOfAny($invalidChars) -ge 0 -or $fullTitle.IndexOfAny($invalidChars) -ge 0) {
+    throw 'Cover title contains invalid Windows filename characters. Rewrite the cover title before rendering; do not silently rename only the file.'
 }
 
 $dateDir = Join-Path $outputPath $Date
 $topicFolderName = "$Sequence.$title"
 $topicDir = Join-Path $dateDir $topicFolderName
-$destinationVideo = Join-Path $topicDir "$title.mp4"
+$destinationVideo = Join-Path $topicDir "$fullTitle.mp4"
 $destinationCover = Join-Path $topicDir '封面.png'
 
 Assert-PathInside -Child $dateDir -Parent $outputPath -Label 'Date directory'
@@ -173,6 +180,7 @@ try {
     Date = $Date
     Sequence = $Sequence
     Topic = $title
+    FullTitle = $fullTitle
     OutputDirectory = $topicDir
     Video = $destinationVideo
     Cover = $destinationCover

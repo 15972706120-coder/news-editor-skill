@@ -53,6 +53,7 @@ def main() -> int:
             "audio_mode": "bgm_only",
             "headline": "紧凑新闻测试",
             "subtitle": "视频加图片关键帧",
+            "source_label": "回归测试来源",
             "pages": [{
                 "id": "p1", "start_frame": 1, "end_frame": 210,
                 "white_lines": ["动态素材不足时使用短版"],
@@ -119,6 +120,8 @@ def main() -> int:
         report = json.loads((render_dir / "render-report.json").read_text(encoding="utf-8"))
         if report.get("body_media_types") != ["video", "image"] or not report.get("diagnostic"):
             raise AssertionError("render report lost mixed-media/diagnostic identity")
+        if report.get("still_motion_supersample") != 4:
+            raise AssertionError("still motion must be rendered with 4x supersampling")
         print(json.dumps({"status": "PASS", "probe": probe,
                           "media_types": report["body_media_types"]}, ensure_ascii=False))
     return 0

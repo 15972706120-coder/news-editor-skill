@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import unicodedata
 import wave
 from pathlib import Path
@@ -130,6 +131,20 @@ def load_timeline(path: Path, verify_assets: bool = True) -> dict:
                     f'{pid}: duration is not measured from current WAV')
     require(cursor == total, 'Pages do not cover the full timeline')
     require(plan.get('audio_mode', 'tts_bgm') in ('tts_bgm', 'bgm_only'), 'Invalid audio_mode')
+    headline, subtitle = plan.get('headline'), plan.get('subtitle')
+    require(isinstance(headline, str) and headline.strip(), 'Missing top-level headline')
+    require(isinstance(subtitle, str) and subtitle.strip(), 'Missing top-level subtitle')
+    source_label = plan.get('source_label')
+    require(isinstance(source_label, str) and source_label.strip(),
+            'Missing top-level source_label; the news source is mandatory as the small '
+            'bottom-right caption on every body page')
+    outlets = [name for name in re.split(r'[/／|、·,，;；\s]+', source_label) if name]
+    for field, text in (('headline', headline), ('subtitle', subtitle)):
+        compact_text = normalized_copy(text)
+        clash = [name for name in outlets if normalized_copy(name) and normalized_copy(name) in compact_text]
+        require(not clash,
+                f'{field} must not contain news source outlets {clash}; outlets are never part of the top '
+                'title or subtitle bar and appear only in the bottom-right source_label caption')
     cover = plan.get('cover')
     if cover is not None:
         require(cover.get('source_kind') == 'image', 'Cover must use a separately acquired image, never a video frame')
@@ -154,6 +169,9 @@ def load_timeline(path: Path, verify_assets: bool = True) -> dict:
     if clips is not None:
         require(bool(clips), 'No clips')
         policy = read_json(ROOT/'config.json')['video']['still_media']
+        require(type(policy.get('motion_supersample')) is int and policy['motion_supersample'] >= 2,
+                'still_media.motion_supersample must be an integer >= 2; still motion is rendered '
+                'supersampled to avoid whole-pixel stutter')
         cursor, still_frames, still_segments, video_frames = 1, 0, 0, 0
         used_ranges = {}
         for clip in clips:

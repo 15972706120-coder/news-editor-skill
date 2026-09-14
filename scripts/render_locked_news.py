@@ -34,15 +34,23 @@ def geometry(crop, target):
     return math.ceil(w*scale), math.ceil(h*scale)
 
 
-def still_motion_filter(motion, frames, fps, width, height):
-    """Deterministic linear Ken Burns motion in normalized anchor coordinates."""
+def still_motion_filter(motion, frames, fps, width, height, supersample):
+    """Deterministic linear Ken Burns motion in normalized anchor coordinates.
+
+    zoompan samples the input at whole pixels; rendering the motion directly at
+    output size snaps every step and visibly stutters. The input is therefore
+    upscaled by a whole-number factor first, so each output step is sub-pixel.
+    """
+    require(type(supersample) is int and supersample >= 2,
+            'Still motion requires whole-number supersampling >= 2 (config still_media.motion_supersample)')
     sz,ez=motion['start_zoom'],motion['end_zoom']
     sx,sy=motion['start_anchor']; ex,ey=motion['end_anchor']
     denominator=max(frames-1,1)
     z=f'{sz}+({ez-sz})*on/{denominator}'
     ax=f'{sx}+({ex-sx})*on/{denominator}'
     ay=f'{sy}+({ey-sy})*on/{denominator}'
-    return (f"zoompan=z='{z}':x='(iw-iw/zoom)*({ax})':y='(ih-ih/zoom)*({ay})'"
+    return (f'scale={width*supersample}:{height*supersample}:flags=lanczos,'
+            f"zoompan=z='{z}':x='(iw-iw/zoom)*({ax})':y='(ih-ih/zoom)*({ay})'"
             f':d={frames}:s={width}x{height}:fps={fps}')
 
 
@@ -104,7 +112,7 @@ def preview_layers(plan, lock, font, directory):
         boxes['red'] = draw_text(image, page['red_emphasis'], font, body['red_font_px'],
                                 body['red_emphasis_safe_bbox'], colors['red_emphasis'], stroke=2, stroke_fill='white')
         if plan.get('source_label'):
-            draw_text(image, plan['source_label'], font, 18, body['source_safe_bbox'], '#AAAAAA', 'right')
+            draw_text(image, plan['source_label'], font, 18, body['source_safe_bbox'], '#717171', 'right')
         target = directory/f'page-{i+1:02}-overlay.png'
         image.save(target)
         paths.append(target)
@@ -204,6 +212,7 @@ def main():
     for layer in layers:
         inputs += ['-loop','1','-framerate',str(fps),'-i',str(layer)]
     fx,fy,fw,fh=lock['body_page']['footage']
+    supersample=config['video']['still_media']['motion_supersample']
     for i,clip in enumerate(clips,1):
         cx,cy,cw,ch=clip['crop']
         info=cache_probe[str(resolve(base,clip['path']))]
@@ -216,7 +225,7 @@ def main():
         if clip['media_type'] == 'video':
             parts.append(base_filter+f',setsar=1,fps={fps},trim=end_frame={frames},setpts=N/({fps}*TB)[r{i}]')
         else:
-            parts.append(base_filter+f',{still_motion_filter(clip["motion"],frames,fps,fw,fh)},trim=end_frame={frames},setpts=N/({fps}*TB)[r{i}]')
+            parts.append(base_filter+f',{still_motion_filter(clip["motion"],frames,fps,fw,fh,supersample)},trim=end_frame={frames},setpts=N/({fps}*TB)[r{i}]')
         label=f'[r{i}]'
         if clip.get('blur'):
             mx,my,mw,mh=clip['blur']
@@ -250,6 +259,8 @@ def main():
             'font_sha256':sha256(args.font),'renderer_sha256':sha256(Path(__file__)),
             'cover_sha256':sha256(cover_path),'cover_source_sha256':sha256(source),
             'body_media_types':[c['media_type'] for c in clips],
+            'still_motion_supersample':supersample if any(c['media_type']!='video' for c in clips) else None,
+            'source_label':plan.get('source_label'),
             'text_placements':records,'timings':timings,
             'video':str(output) if args.render else None,
             'video_sha256':sha256(output) if args.render else None,

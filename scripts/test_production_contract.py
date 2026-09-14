@@ -32,7 +32,9 @@ class ProductionRegression(unittest.TestCase):
         manifest={'status':'TTS_READY','page_id':'p1','request':{'text':narration,'text_sha256':text_hash(narration)},
                   'audio':{'path':'voice.wav','sha256':sha256(self.wav),'duration_seconds':1}}
         (self.root/'voice.json').write_text(json.dumps(manifest),encoding='utf-8')
-        self.plan={'schema_version':1,'fps':30,'total_frames':60,'cover_frames':1,'pages':[
+        self.plan={'schema_version':1,'fps':30,'total_frames':60,'cover_frames':1,
+                   'headline':'测试主标题','subtitle':'测试副标题短语','source_label':'测试媒体',
+                   'pages':[
             {'id':'p1','start_frame':1,'end_frame':60,'white_lines':['暂无法保障'],'red_emphasis':'亲子相邻',
              'timing':{'information_task':'说明相邻座位的保障限制','reading_hold_seconds':1.8,
                        'reading_basis':'测试夹具，不是人工验收','cut_reason':'完整限制表达后切页'},
@@ -47,6 +49,23 @@ class ProductionRegression(unittest.TestCase):
         return load_timeline(path)
 
     def test_valid_measured_binding(self):self.assertEqual(self.load()['total_frames'],60)
+
+    def test_missing_source_label_is_rejected(self):
+        del self.plan['source_label']
+        with self.assertRaisesRegex(ValueError,'source_label'):self.load()
+
+    def test_source_outlet_cannot_enter_the_subtitle_bar(self):
+        self.plan['subtitle']='测试媒体报道'
+        with self.assertRaisesRegex(ValueError,'subtitle must not contain news source'):self.load()
+
+    def test_source_outlet_cannot_enter_the_headline(self):
+        self.plan['headline']='测试媒体发布新规'
+        with self.assertRaisesRegex(ValueError,'headline must not contain news source'):self.load()
+
+    def test_multi_outlet_source_label_is_split_for_containment(self):
+        self.plan['source_label']='测试媒体/第二媒体'
+        self.plan['subtitle']='第二媒体跟进'
+        with self.assertRaisesRegex(ValueError,'subtitle must not contain news source'):self.load()
 
     def test_missing_red_is_rejected(self):
         self.plan['pages'][0]['red_emphasis']=''
@@ -151,9 +170,16 @@ class ProductionRegression(unittest.TestCase):
 
     def test_still_motion_filter_has_exact_frame_count_and_size(self):
         motion=self.valid_still_clip()['motion']
-        value=still_motion_filter(motion,60,30,1080,1024)
+        value=still_motion_filter(motion,60,30,1080,1024,4)
+        self.assertIn('scale=4320:4096:flags=lanczos',value)
         self.assertIn('d=60:s=1080x1024:fps=30',value)
         self.assertIn('on/59',value)
+
+    def test_still_motion_filter_requires_supersampling(self):
+        motion=self.valid_still_clip()['motion']
+        for bad in (1,0,'4',True,None):
+            with self.subTest(supersample=bad),self.assertRaisesRegex(ValueError,'supersampl'):
+                still_motion_filter(motion,60,30,1080,1024,bad)
 
     def test_restarting_same_clip_at_page_cut_is_rejected(self):
         self.plan['clips']=[{'media_type':'video','path':str(self.wav),'source_in_seconds':0,'start_frame':1,'end_frame':30,'page_id':'p1','supports_claim':'测试'},
@@ -270,6 +296,7 @@ class PublicationPacingGate(unittest.TestCase):
                  'sha256':sha256(self.video)}
         self.qa=self.root/'qa.json';self.qa.write_text(json.dumps(machine),encoding='utf-8')
         self.acceptance={'status':'FINAL_READY','diagnostic':False,'cover_title':'测试新闻',
+                         'cover_title_full':'测试新闻，测试副标题',
                          'video_sha256':sha256(self.video),'cover_sha256':sha256(self.cover),
                          'machine_report':'qa.json','machine_report_sha256':sha256(self.qa),
                          'review':{k:'passed' for k in ('visual','audio','facts','muted_reading','voiced_playback')}}
@@ -280,11 +307,17 @@ class PublicationPacingGate(unittest.TestCase):
         report=self.root/'acceptance.json';report.write_text(json.dumps(self.acceptance),encoding='utf-8')
         command=['pwsh','-NoProfile','-File',str(Path(__file__).with_name('publish_news_output.ps1')),
                  '-OutputRoot',str(self.root/'delivery'),'-WorkRoot',str(self.root/'work'),
-                 '-Date','2026-09-07','-Sequence','1','-CoverTitle','测试新闻',
+                 '-Date','2026-09-07','-Sequence','1','-CoverTitle','测试新闻','-CoverSubtitle','测试副标题',
                  '-FinalVideo',str(self.video),'-Cover',str(self.cover),'-AcceptanceReport',str(report),'-WhatIf']
         result=subprocess.run(command,capture_output=True,encoding='utf-8',errors='replace',timeout=30)
         self.assertFalse((self.root/'delivery').exists(),'Dry-run gate must not create output directories')
         return result
+
+    def test_missing_full_title_in_acceptance_is_rejected(self):
+        del self.acceptance['cover_title_full']
+        result=self.invoke()
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('Acceptance hashes/titles',result.stderr)
 
     def test_both_pacing_reviews_are_required(self):
         for gate in ('muted_reading','voiced_playback'):

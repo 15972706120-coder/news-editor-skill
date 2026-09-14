@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.12.0 — 2026-09-14
+
+- 顶部标题区禁止出现新闻来源：主标题与黄色副标题条只承载新闻内容短语，来源固定以 18px `#717171` 小字渲染在每页正文板右下角 `source_safe_bbox`。时间轴顶层新增必填 `source_label`（如“界面新闻/财联社”），`production_contract.load_timeline` 校验 `headline`/`subtitle` 中不得包含其中的任何媒体名；G4/G7 增加对应视觉否决项。起因：2026-09-13/09-14 多条成片把“封面新闻·澎湃新闻”“潮新闻·澎湃新闻·川观新闻”写进了副标题条，正确样式参照“鸿蒙智行八月交付”样片右下角“界面新闻/财联社”。
+- 图片/信息截图关键帧运动强制多倍超采样：新增 config `video.still_media.motion_supersample=4`，渲染器在 zoompan 前先按整数倍 lanczos 超采样再输出到目标尺寸，消除整像素采样导致的逐帧卡顿；render 报告记录 `still_motion_supersample`，最终机器验收校验该字段不低于 config 值。起因：“油价少涨了”样片中截图缩放动画明显卡顿。
+- 最终 MP4 文件名改为与完整封面标题逐字一致：`cover_title_full` = 封面主标题 + 全角逗号 + 封面副标题（config `output.cover_title_full_pattern`）；`publish_news_output.ps1` 新增必填 `-CoverSubtitle` 并与 acceptance.json 的 `cover_title_full` 核对，`check_output_layout.ps1` 校验文件名以主题目录短名开头。主题目录仍为 `N.` + 封面主标题短名。起因：“1.渔民奇迹生还”成片只以主标题命名，应为“渔民奇迹生还，失踪11天回家.mp4”。
+
 ## 1.11.3 — 2026-09-09
 
 - 用一张完整工作流信息图替换 README 顶部重复画面的接触表，使项目入口先说明流程与交付结果。
