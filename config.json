@@ -1,5 +1,5 @@
 {
-  "version": "1.12.0",
+  "version": "1.13.0",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
 
@@ -45,6 +45,22 @@
     "cover_title_short_definition": "封面主标题，用作主题目录短名",
     "cover_title_full_definition": "完整封面标题 = 封面主标题 + 全角逗号 + 封面副标题，与封面两行文字逐字一致，用作最终 MP4 文件名",
     "cover_name": "封面.png"
+  },
+
+  "platform_publish": {
+    "_readme": "平台发布 FACT：发布入口、账号与操作策略的唯一机器事实源；执行流程见 references/alipay-publish-pipeline.md。",
+    "platform": "支付宝内容创作平台（生活号+）",
+    "account": "手机通讯生活",
+    "app_id": "2016011301909316",
+    "publish_url": "https://c.alipay.com/page/content-creation/publish/short-video?appId=2016011301909316",
+    "browser_policy": "computer-use 驱动用户日常 Chrome 真实配置文件；禁止独立自动化浏览器实例",
+    "login_mode": "账户登录标签 + Chrome 密码管理器自动填充；Agent 不键入不回传凭据",
+    "cover_mode": "封面占位框 → 截取封面默认首帧 → 完成；不单独上传封面图片文件",
+    "declaration": "作者声明第一项（无需标注/无转载）；多视频用批量编辑统一应用",
+    "upload_dialog": "原生文件对话框：完整路径写剪贴板，粘贴后 Enter 打开",
+    "batch_limit": 20,
+    "verify_rule": "以内容管理-已发布列表按标题与当天时间戳逐条核对；缺失时按审核中→审核未通过→封面待优化→草稿箱排查，仍未命中则重传补发",
+    "verified": "2026-09-14 双视频实跑（打了21个耳洞、女孩硬拉140公斤）"
   },
 
   "workspace": {

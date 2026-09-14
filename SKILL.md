@@ -1,6 +1,6 @@
 ---
 name: news-editor
-description: "从非国家级媒体与原始发布渠道发现热点，核验事实，检索可追溯的视频、高清封面图与少量补充图片/信息截图，制作、修改和验收竖屏新闻短视频。适用于选题推荐、素材剪辑、独立图片封面、关键帧图像运动、新闻版式、配音、BGM、合成或逐帧质检；不使用AI自生成新闻主体画面。"
+description: "从非国家级媒体与原始发布渠道发现热点，核验事实，检索可追溯的视频、高清封面图与少量补充图片/信息截图，制作、修改和验收竖屏新闻短视频；并在用户验收后按“内容没问题，请帮我发布”等指令发布到支付宝内容创作平台生活号。适用于选题推荐、素材剪辑、独立图片封面、关键帧图像运动、新闻版式、配音、BGM、合成、逐帧质检或平台发布；不使用AI自生成新闻主体画面。"
 ---
 
 # News-Editor
@@ -31,6 +31,7 @@ pwsh -NoProfile -File '<SkillRoot>\scripts\ensure_latest_skill.ps1' -RunId '<本
 - **已有素材剪辑**：用户已经给出视频与文案，只执行相关制作节点。
 - **定向修改**：只修改用户点名的画面、声音、时长或版式，不擅自重做其他部分。
 - **质检**：只检查并报告问题；除非用户要求修复，否则不改文件。
+- **平台发布**：用户验收成片后以“内容没问题，请帮我发布”“发布到手机通讯生活”等指令明确授权时，把输出区最终 MP4 上传并发布到支付宝内容创作平台；发布不可逆，未获明确指令不得上传，也不扩大发布范围。
 
 ## 环境启动门
 
@@ -38,7 +39,7 @@ pwsh -NoProfile -File '<SkillRoot>\scripts\ensure_latest_skill.ps1' -RunId '<本
 
 依赖分层如下：`agent-browser` 与 Remotion 既有 Agent Skill 层，也有实际 CLI/npm 运行层；`yt-dlp` 是命令行/Python 包；MiniMax 通过 `scripts/minimax_tts.py` 调用官方 HTTPS API；FFmpeg、FFprobe、Chrome、Node.js、Python 和微软雅黑属于系统环境。
 
-用户未提供明确新闻主题时，先读取并执行 [references/topic-discovery.md](references/topic-discovery.md)。完整制作或跨多个节点的任务，读取 [references/editorial-sop.md](references/editorial-sop.md)；需要并行子智能体、批量主题或控制上下文长度时，再读取并执行 [references/subagent-orchestration.md](references/subagent-orchestration.md)，并用 `scripts/orchestration_contract.py` 校验任务包和交接包。制作封面、正文页面、分页配音或混音时，读取 [references/visual-audio-template.md](references/visual-audio-template.md)；制作封面或准备发布平台预览时还必须读取 [references/cover-platform-layout-v2.md](references/cover-platform-layout-v2.md)。所有封面与正文页面必须再读取 [references/locked-layout-validation.md](references/locked-layout-validation.md)，以其中从用户确认成片抽取的关键帧、分板图和 `layout-lock-v2.json` 为唯一坐标源，并在草稿与最终 MP4 上运行 `scripts/extract_layout_proof.py`。完整制作、草稿复核或最终交付必须读取并执行 [references/delivery-gates.md](references/delivery-gates.md) 的 G0–G8 质量门。任何准备对外发布的成片，读取 [references/quality-standards.md](references/quality-standards.md)。需要组织输出目录、版本或最终交付时，读取 [references/delivery-contract.md](references/delivery-contract.md)。
+用户未提供明确新闻主题时，先读取并执行 [references/topic-discovery.md](references/topic-discovery.md)。完整制作或跨多个节点的任务，读取 [references/editorial-sop.md](references/editorial-sop.md)；需要并行子智能体、批量主题或控制上下文长度时，再读取并执行 [references/subagent-orchestration.md](references/subagent-orchestration.md)，并用 `scripts/orchestration_contract.py` 校验任务包和交接包。制作封面、正文页面、分页配音或混音时，读取 [references/visual-audio-template.md](references/visual-audio-template.md)；制作封面或准备发布平台预览时还必须读取 [references/cover-platform-layout-v2.md](references/cover-platform-layout-v2.md)。所有封面与正文页面必须再读取 [references/locked-layout-validation.md](references/locked-layout-validation.md)，以其中从用户确认成片抽取的关键帧、分板图和 `layout-lock-v2.json` 为唯一坐标源，并在草稿与最终 MP4 上运行 `scripts/extract_layout_proof.py`。完整制作、草稿复核或最终交付必须读取并执行 [references/delivery-gates.md](references/delivery-gates.md) 的 G0–G8 质量门。任何准备对外发布的成片，读取 [references/quality-standards.md](references/quality-standards.md)。需要组织输出目录、版本或最终交付时，读取 [references/delivery-contract.md](references/delivery-contract.md)。用户以“内容没问题，请帮我发布”“发布到手机通讯生活”等指令明确授权平台发布时，读取并执行 [references/alipay-publish-pipeline.md](references/alipay-publish-pipeline.md)：按 config `platform_publish` 段的事实，用 computer-use 驱动用户日常 Chrome（真实配置文件）完成支付宝内容创作平台的上传、封面、作者声明、批量或单条发布与发布后核验；账号凭据只来自用户浏览器密码管理器自动填充，发布前必须确认每条视频上传就绪，发布后以内容管理已发布列表逐条核对。
 
 进入抖音素材检索与下载节点时，先沿用已经验证的 `agent-browser → 规范化 /video/<id> 页面链接 → yt-dlp → FFprobe/FFmpeg 质检` 路径。若出现登录态失效、搜索结果抓取失败、链接无法规范化、下载器 403/解析失败、音视频合并失败、文件损坏、可用时长不足，或连续两次尝试仍停留在同一节点，必须读取并执行 [references/douyin-news-footage-pipeline.md](references/douyin-news-footage-pipeline.md)。把它作为下载恢复手册：从其中定义的最近可靠状态继续，不从头盲目重跑，不改用宽泛关键词，不切换为生成画面，也不绕过平台访问限制。普通制作未进入该节点或下载已经顺利完成时，不需要预加载这份长参考。
 
