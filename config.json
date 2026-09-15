@@ -1,5 +1,5 @@
 {
-  "version": "1.13.0",
+  "version": "1.14.0",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
 
@@ -54,13 +54,29 @@
     "app_id": "2016011301909316",
     "publish_url": "https://c.alipay.com/page/content-creation/publish/short-video?appId=2016011301909316",
     "browser_policy": "computer-use 驱动用户日常 Chrome 真实配置文件；禁止独立自动化浏览器实例",
+    "browser_launch": {
+      "chrome_path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "cold_start": "Chrome 未运行时按名称 open_application 找不到，须用完整路径 Start-Process，参数 --start-maximized --new-window + 发布页 URL；启动后 wait 2-3 秒并确认加载",
+      "forbidden_args": ["--user-data-dir", "--incognito"]
+    },
     "login_mode": "账户登录标签 + Chrome 密码管理器自动填充；Agent 不键入不回传凭据",
-    "cover_mode": "封面占位框 → 截取封面默认首帧 → 完成；不单独上传封面图片文件",
+    "account_switch": {
+      "rule": "登录后平台停留在上次使用的应用，不保证目标生活号；以页面左上角账号卡名称为唯一判据，非目标时点账号卡（「切」标记）打开「请选择应用」弹窗，按名称+ID 选中目标并确定，复核生效",
+      "modal_title": "请选择应用",
+      "known_life_accounts": ["双V会员", "手机通讯生活", "冲鸭攒话费", "名称释放"]
+    },
+    "fast_click": {
+      "window_lock": "进入发布页后固定窗口状态（最大化或保持尺寸不变），全程不得拖动/缩放/换显示器，否则坐标作废",
+      "mode": "基准截图标定固定坐标后对稳定控件连续点击（点击间 wait 0.3-1 秒），不逐次截图",
+      "checkpoints": ["登录后账号校验", "每条上传就绪门", "每条封面应用后预览更新", "批量发布进度 N/N", "内容管理逐条核对"]
+    },
+    "cover_mode": "优先点击封面图片推荐中与预览大图一致的缩略图（零弹窗即设）；无匹配才点上传封面，走原生对话框传主题目录封面.png",
+    "item_switch": "多条目编辑点击左队列缩略图槽位切换，禁止用滚轮滚动切换条目",
     "declaration": "作者声明第一项（无需标注/无转载）；多视频用批量编辑统一应用",
     "upload_dialog": "原生文件对话框：完整路径写剪贴板，粘贴后 Enter 打开",
     "batch_limit": 20,
     "verify_rule": "以内容管理-已发布列表按标题与当天时间戳逐条核对；缺失时按审核中→审核未通过→封面待优化→草稿箱排查，仍未命中则重传补发",
-    "verified": "2026-09-14 双视频实跑（打了21个耳洞、女孩硬拉140公斤）"
+    "verified": "2026-09-14 双视频实跑（打了21个耳洞、女孩硬拉140公斤）；2026-09-15 依据用户反馈与页面截图修订冷启动、连击、生活号切换与封面推荐流程"
   },
 
   "workspace": {

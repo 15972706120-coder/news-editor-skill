@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.14.0 — 2026-09-15
+
+- 发布管线四大修复（依据 2026-09-15 用户反馈与页面截图，[references/alipay-publish-pipeline.md](references/alipay-publish-pipeline.md) 升至 1.1）：
+  1. **Chrome 冷启动**：Chrome 未运行时 `open_application` 按名称经常找不到，改为完整路径 `C:\Program Files\Google\Chrome\Application\chrome.exe` 以 `--start-maximized --new-window` + 发布页 URL 冷启动，启动后等待并确认加载；禁止 `--user-data-dir`/`--incognito`（会产生无凭据干净实例）。已在运行时附着并最大化。
+  2. **固定坐标快速连击**：进入发布页先锁定窗口状态并拍基准截图标定坐标，左队列槽位、封面推荐缩略图、批量编辑/发布等稳定控件按固定坐标连续点击（间隔 0.3–1 秒），不逐次截图；只在登录后账号校验、每条就绪门、每条封面应用、发布进度 N/N、内容管理核对五个校验点重新观察；任何校验失败或意外弹窗立即退回单步观察-点击模式，窗口状态改变则坐标作废重标。
+  3. **登录后生活号校验与切换**：登录成功后平台停留在“上次使用的应用”，即使 URL 带 appId 也可能落在双V会员、冲鸭攒话费等其他生活号；以页面左上角账号卡名称为唯一判据，非目标时点账号卡「切」入口（或处理自动弹出的）「请选择应用」弹窗，按名称+ID 选中「手机通讯生活」并确定，复核左上角账号名生效后才继续上传。
+  4. **封面推荐帧优先与队列点击切换**：多条目设置封面改为点击左中部视频队列缩略图槽位切换条目（禁用滚轮）；封面优先点击「封面图片推荐」中与预览大图一致的缩略图（零弹窗即设），替代旧「占位框→截取封面→完成」弹窗流程；推荐帧无匹配时才点「上传封面」走原生对话框粘贴主题目录 `封面.png`；每条应用后以预览大图更新为校验点。
+- config `platform_publish` 新增 `browser_launch`、`account_switch`、`fast_click`、`item_switch` 事实键，`cover_mode` 更新为推荐帧优先+上传兜底，`verified` 追加 2026-09-15 修订记录。
+
 ## 1.13.0 — 2026-09-14
 
 - 新增平台发布管线：用户验收成片后以“内容没问题，请帮我发布”“发布到手机通讯生活”等指令明确授权时，把输出区最终 MP4 发布到支付宝内容创作平台（手机通讯生活）。新增 [references/alipay-publish-pipeline.md](references/alipay-publish-pipeline.md) 执行手册与 config `platform_publish` 事实段（发布入口 URL、appId、账号、封面取首帧、声明策略、上传对话框与核验规则）。
