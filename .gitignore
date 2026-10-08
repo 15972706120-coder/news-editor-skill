@@ -16,4 +16,7 @@ __pycache__/
 Thumbs.db
 *.tmp
 *.log
-
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm

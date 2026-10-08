@@ -196,6 +196,10 @@ function Get-CoreContractHashes {
         'VERSION',
         'config.json',
         'references/subagent-orchestration.md',
+        'references/editorial-feedback-loop.md',
+        'scripts/editorial_contract.py',
+        'scripts/editorial_ledger.py',
+        'scripts/performance_review.py',
         'scripts/ensure_latest_skill.ps1',
         'scripts/orchestration_contract.py'
     )
@@ -285,6 +289,10 @@ function Test-CoreFiles {
         'scripts/ensure_latest_skill.ps1',
         'scripts/orchestration_contract.py',
         'scripts/check_skill_consistency.py',
+        'scripts/editorial_contract.py',
+        'scripts/editorial_ledger.py',
+        'scripts/performance_review.py',
+        'references/editorial-feedback-loop.md',
         'references/subagent-orchestration.md',
         'references/current-production-profile-v2.md',
         'assets/references/locked-layout/layout-lock-v2.json'

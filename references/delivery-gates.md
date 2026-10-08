@@ -186,4 +186,4 @@ V2 声音与命名补充门：逐页 MiniMax 原始 stem 必须可解码并完�
 
 所有门通过后把状态写为 `FINAL_READY`，再执行输出：每个主题的输出目录默认只保留一个稳定中文名 MP4 和一个 `封面.png`；日期目录按生产顺序从 `1.` 连续编号。运行 `scripts/check_output_layout.ps1`（输出根目录缺省从 config.json 读取）后必须满足：输出根目录只有 `YYYY-MM-DD` 日期目录、日期层无散落文件、主题目录无子目录、无英文主题名、无脚本/截图/测试/缓存/版本文件。检查失败时仍不得交付为最终版。
 
-发布时 `acceptance.json.review` 还必须明确 `muted_reading=passed` 与 `voiced_playback=passed`，对应本次最终 MP4 的两遍节奏复核；未执行记录 not_checked，不能让其他通用通过项替代。执行脚本与证据结构见 [可执行制作链路](executable-production.md)。
+发布时 `acceptance.json.review` 还必须明确 `muted_reading=passed` 与 `voiced_playback=passed`，对应本次最终 MP4 的两遍节奏复核；未执行记录 not_checked，不能让其他通用通过项替代。执行脚本与证据结构见 [可执行制作链路](executable-production.md)。事实、四时间、表达与当前工件还须通过[编辑记录门](editorial-feedback-loop.md)，其记录检查不替代G0–G8的实际视听；本地输出另外核验editorial-report哈希。

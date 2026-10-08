@@ -93,6 +93,10 @@ def check_config(issues: list) -> None:
         version_text = version_path.read_text(encoding="utf-8").strip()
         if version_text != str(data.get("version", "")):
             issues.append(("FAIL", "VERSION", "VERSION 与 config.json version 不一致"))
+        readme = ROOT / "README.md"
+        badge = re.search(r"img\.shields\.io/badge/version-([0-9]+\.[0-9]+\.[0-9]+)-", readme.read_text(encoding="utf-8")) if readme.exists() else None
+        if not badge or badge.group(1) != version_text:
+            issues.append(("FAIL", "README.md", "首页版本徽章必须与 VERSION 一致"))
         changelog = ROOT / "CHANGELOG.md"
         if changelog.exists():
             match = re.search(r"^##\s+([^\s]+)", changelog.read_text(encoding="utf-8"), re.MULTILINE)
@@ -126,6 +130,21 @@ def check_config(issues: list) -> None:
     for key, expected in expected_orchestration.items():
         if orchestration.get(key) != expected:
             issues.append(("FAIL", "config.json", f"orchestration.{key} 必须为 {expected!r}"))
+    feedback = data.get("editorial_feedback", {})
+    for key, expected in {"package_schema":"news-editor-editorial/v1", "report_schema":"news-editor-editorial-report/v1", "requested_count_is_upper_limit":True}.items():
+        if feedback.get(key) != expected:
+            issues.append(("FAIL", "config.json", f"editorial_feedback.{key} 必须为 {expected!r}"))
+    if type(feedback.get("max_in_progress_topics")) is not int or feedback["max_in_progress_topics"] < 1:
+        issues.append(("FAIL", "config.json", "editorial_feedback.max_in_progress_topics 必须是正整数"))
+    windows = feedback.get("observation_windows_hours")
+    if not isinstance(windows,list) or not windows or any(type(v) is not int or v <= 0 for v in windows) or windows != sorted(set(windows)):
+        issues.append(("FAIL", "config.json", "观察窗口必须为递增且唯一的正整数小时列表"))
+    for name in ("editorial_contract", "editorial_ledger", "performance_review"):
+        for filename in (f"{name}.py",f"test_{name}.py"):
+            if not (SCRIPTS_DIR/filename).is_file():
+                issues.append(("FAIL",f"scripts/{filename}","缺失编辑反馈执行/回归文件"))
+    if not (ROOT/"references/editorial-feedback-loop.md").is_file():
+        issues.append(("FAIL","references/editorial-feedback-loop.md","缺失编辑与数据反馈规范"))
     max_age = orchestration.get("run_manifest_max_age_hours")
     workers = orchestration.get("max_parallel_workers")
     decisions = orchestration.get("max_handoff_decisions")
@@ -277,7 +296,7 @@ def check_cover_policy(issues: list) -> None:
 
 
 def check_links(issues: list) -> None:
-    for path in CURRENT_DOCS:
+    for path in CURRENT_DOCS + [ROOT/"README.md"]:
         rel = path.relative_to(ROOT).as_posix()
         text = path.read_text(encoding="utf-8", errors="replace")
         for m in LINK_RE.finditer(text):

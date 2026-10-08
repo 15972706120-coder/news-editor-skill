@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 import wave
@@ -288,14 +289,18 @@ class ProductionRegression(unittest.TestCase):
 class PublicationPacingGate(unittest.TestCase):
     """Synthetic files exercise only the publication gate, always with -WhatIf."""
     def setUp(self):
-        self.tmp=tempfile.TemporaryDirectory()
-        self.root=Path(self.tmp.name)
-        self.video=self.root/'fixture.mp4';self.video.write_bytes(b'not-a-video-unit-fixture')
-        self.cover=self.root/'fixture.png';self.cover.write_bytes(b'not-an-image-unit-fixture')
+        from test_editorial_contract import EditorialContractTests
+        fixture=EditorialContractTests();fixture.setUp()
+        fixture.p['presentation'].update(cover_headline='测试新闻',cover_subline='测试副标题')
+        fixture.t['cover'].update(headline='测试新闻',subline='测试副标题')
+        fixture.ready()
+        self.tmp=fixture.tmp;self.root=fixture.root
+        self.video=fixture.video;self.cover=fixture.cover;self.editorial=fixture.report
         machine={'passed':True,'diagnostic_only':False,'validation_scope':'production_machine_checks',
                  'sha256':sha256(self.video)}
         self.qa=self.root/'qa.json';self.qa.write_text(json.dumps(machine),encoding='utf-8')
         self.acceptance={'status':'FINAL_READY','diagnostic':False,'cover_title':'测试新闻',
+                         'content_id':'p1','editorial_report_sha256':sha256(self.editorial),
                          'cover_title_full':'测试新闻，测试副标题',
                          'video_sha256':sha256(self.video),'cover_sha256':sha256(self.cover),
                          'machine_report':'qa.json','machine_report_sha256':sha256(self.qa),
@@ -308,7 +313,8 @@ class PublicationPacingGate(unittest.TestCase):
         command=['pwsh','-NoProfile','-File',str(Path(__file__).with_name('publish_news_output.ps1')),
                  '-OutputRoot',str(self.root/'delivery'),'-WorkRoot',str(self.root/'work'),
                  '-Date','2026-09-07','-Sequence','1','-CoverTitle','测试新闻','-CoverSubtitle','测试副标题',
-                 '-FinalVideo',str(self.video),'-Cover',str(self.cover),'-AcceptanceReport',str(report),'-WhatIf']
+                 '-FinalVideo',str(self.video),'-Cover',str(self.cover),'-AcceptanceReport',str(report),
+                 '-EditorialReport',str(self.editorial),'-PythonExecutable',sys.executable,'-WhatIf']
         result=subprocess.run(command,capture_output=True,encoding='utf-8',errors='replace',timeout=30)
         self.assertFalse((self.root/'delivery').exists(),'Dry-run gate must not create output directories')
         return result
@@ -330,6 +336,20 @@ class PublicationPacingGate(unittest.TestCase):
     def test_complete_fixture_passes_dry_run_only(self):
         result=self.invoke()
         self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_missing_editorial_report_binding_is_rejected(self):
+        del self.acceptance['editorial_report_sha256']
+        result=self.invoke()
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('Editorial record changed',result.stderr)
+
+    def test_changed_editorial_input_is_rejected(self):
+        package=self.root/'facts.json'
+        data=json.loads(package.read_text(encoding='utf-8'));data['review']['reviewer']='different'
+        package.write_text(json.dumps(data),encoding='utf-8')
+        result=self.invoke()
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('Editorial binding verification failed',result.stderr)
 
     def test_diagnostic_is_rejected_even_with_reviews(self):
         self.acceptance['diagnostic']=True

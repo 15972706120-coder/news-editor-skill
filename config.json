@@ -1,5 +1,5 @@
 {
-  "version": "1.14.2",
+  "version": "1.15.0",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
 
@@ -22,6 +22,8 @@
     "handoff_schema": "news-editor-handoff/v1",
     "run_manifest_max_age_hours": 12,
     "max_parallel_workers": 3,
+    "default_production_owner": "root",
+    "scouts_policy": "按素材/封面独立工作与实际并发槽派发；角色不要求全部拆分，QA保持独立只读",
     "max_handoff_decisions": 5,
     "role_output_roots": {
       "facts": "lanes/facts",
@@ -34,6 +36,19 @@
       "qa": "qa"
     },
     "note": "一个用户请求只由根编排者联网验版；子智能体必须持有同一运行清单及其SHA-256，只做固定commit的本地证明。独立运行、清单缺失、过期或不匹配时不得使用子模式。"
+  },
+
+  "editorial_feedback": {
+    "package_schema": "news-editor-editorial/v1",
+    "report_schema": "news-editor-editorial-report/v1",
+    "ledger_filename": "editorial-ledger.sqlite",
+    "max_in_progress_topics": 2,
+    "requested_count_is_upper_limit": true,
+    "dedup_policy": "同事件无新增事实阻断；事务占位覆盖在制、草稿、已验收、已发布与阻塞；纠错和实质进展可继续，语义必须编辑核查",
+    "cooldown_policy": "提示，不以统一事件/题材时限否决实质进展或必要纠错",
+    "observation_windows_hours": [24, 72, 168],
+    "snapshot_policy": "记录真实published_at、observed_at与指标分母；累计快照不自动视为固定窗口",
+    "note": "阈值为试运行配置，不是传播最优值。台账和事实/效果记录仅在工作区；不提交账户数据、凭据、原始后台导出或生产台账。"
   },
 
   "output": {
@@ -82,10 +97,10 @@
       "ax_tactics": "radio 无选中态，点击后以 focused 为落点信号；每次点击可能使状态过期，重新观察再点下一项；发布前视觉复核三个实心选中（立即发布/公开/内容无需标注）",
       "verified": "2026-09-15 折叠iPhone，eSIM开卡指南 单视频实跑"
     },
-    "declaration": "作者声明第一项（无需标注/无转载）；多视频用批量编辑统一应用",
+    "declaration": "按名称选择「内容无需标注」；批量弹窗通常为第一项，单页通常为最后一项；实际页面名称与选中态核验优先于序号",
     "upload_dialog": "原生文件对话框：完整路径写剪贴板，粘贴后 Enter 打开",
     "batch_limit": 20,
-    "verify_rule": "以内容管理-已发布列表按标题与当天时间戳逐条核对；缺失时按审核中→审核未通过→封面待优化→草稿箱排查，仍未命中则重传补发",
+    "verify_rule": "以内容管理按平台作品ID、标题与实际发布时间逐条核对并更新台账；结果未知先核对已发布/审核中/未通过/待优化/草稿，不以列表短暂空白判断失败；确认缺失且当前文件授权仍有效时才补发，禁止整批重发",
     "verified": "2026-09-14 双视频实跑（打了21个耳洞、女孩硬拉140公斤）；2026-09-15 修订冷启动、连击、生活号切换与封面推荐流程并完成单视频实跑（折叠iPhone，eSIM开卡指南）"
   },
 

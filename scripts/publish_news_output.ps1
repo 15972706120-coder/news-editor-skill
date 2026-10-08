@@ -29,6 +29,11 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$AcceptanceReport,
 
+    [Parameter(Mandatory = $true)]
+    [string]$EditorialReport,
+
+    [string]$PythonExecutable = 'python',
+
     [switch]$Replace
 )
 
@@ -101,6 +106,19 @@ if ($acceptance.video_sha256 -ne (Get-FileHash -LiteralPath $videoPath -Algorith
 }
 foreach ($gate in @('visual','audio','facts','muted_reading','voiced_playback')) {
     if ($acceptance.review.$gate -ne 'passed') { throw "Missing completed review: $gate" }
+}
+$editorialPath = Get-NormalizedPath $EditorialReport
+if ($acceptance.editorial_report_sha256 -ne (Get-FileHash -LiteralPath $editorialPath -Algorithm SHA256).Hash.ToLowerInvariant()) {
+    throw 'Editorial record changed after acceptance, or acceptance lacks its hash. Recheck the exact copy and files.'
+}
+$editorial = Get-Content -LiteralPath $editorialPath -Raw | ConvertFrom-Json
+if ([string]::IsNullOrWhiteSpace($acceptance.content_id) -or $acceptance.content_id -cne $editorial.content_id) {
+    throw 'Acceptance content_id must match the editorial record and production ledger.'
+}
+$editorialCheck = & $PythonExecutable (Join-Path $PSScriptRoot 'editorial_contract.py') verify `
+    --report $editorialPath --video $videoPath --cover $coverPath --title $title --subtitle $subtitle
+if ($LASTEXITCODE -ne 0) {
+    throw "Editorial binding verification failed: $editorialCheck"
 }
 $machinePath = [System.IO.Path]::GetFullPath((Join-Path (Split-Path -Parent (Get-NormalizedPath $AcceptanceReport)) $acceptance.machine_report))
 if ($acceptance.machine_report_sha256 -ne (Get-FileHash -LiteralPath $machinePath -Algorithm SHA256).Hash.ToLowerInvariant()) {
@@ -177,6 +195,7 @@ try {
 }
 
 [pscustomobject]@{
+    ContentId = $acceptance.content_id
     Date = $Date
     Sequence = $Sequence
     Topic = $title

@@ -51,7 +51,7 @@
 
 ## 3. 正常执行命令
 
-先完成版本门、对应环境预检、事实与素材审核。标准渲染适配器需要 Python/Pillow、批准的字体与 FFmpeg/FFprobe；不需要临时重建浏览器工程。只有选择 Remotion 实现时才检查其完整 Skill、项目与 npm 依赖，缺工程不视为已验证。
+先完成版本门、对应环境预检、事实与素材审核。连续生产从 [编辑台账与效果反馈](editorial-feedback-loop.md) 的事件占位开始；每条事实包先通过editorial_contract的facts阶段，素材与封面探针通过feasible阶段后才调用TTS。标准渲染适配器需要 Python/Pillow、批准的字体与 FFmpeg/FFprobe；不需要临时重建浏览器工程。只有选择 Remotion 实现时才检查其完整 Skill、项目与 npm 依赖，缺工程不视为已验证。
 
 ```text
 python scripts/minimax_tts.py --text-file <page.txt> --page-id <page-id> --output <page.wav> --report <page.wav.json>
@@ -95,6 +95,8 @@ FFmpeg 相关命令均可传 `--ffmpeg <实际可执行文件>`，需要探针�
 {
   "status": "FINAL_READY",
   "diagnostic": false,
+  "content_id": "与台账及editorial.json相同的稳定ID",
+  "editorial_report_sha256": "本次editorial-report.json文件哈希",
   "cover_title": "已审核的封面主标题",
   "cover_title_full": "封面主标题，封面副标题（与最终 MP4 文件名逐字一致）",
   "video_sha256": "实际成片哈希",
@@ -105,6 +107,6 @@ FFmpeg 相关命令均可传 `--ffmpeg <实际可执行文件>`，需要探针�
 }
 ```
 
-示例不是默认通过值；只有实际看过分板/切点/手机预览、听过每页原声及混音、核过事实并完成全部 G0–G8 才能填写。`muted_reading` 和 `voiced_playback` 分别对应手机尺寸正常速度的静音阅读与带声音播放；逐页证据需注明完整播放区间、是否读完红字、重要限制是否完整、是否空等及换页结论。未做写 not_checked 并停止发布。证据路径和结论保留原有 QA 清单中。`publish_news_output.ps1` 必须同时传 `-CoverTitle <封面主标题>`、`-CoverSubtitle <封面副标题>` 和 `-AcceptanceReport`，脚本以“主标题，副标题”的完整封面标题命名最终 MP4，并核对标题、当前成片/封面哈希、机器检查范围、诊断标记和人工门，拒绝只凭“文件存在”交付。
+示例不是默认通过值；只有实际看过分板/切点/手机预览、听过每页原声及混音、核过事实并完成全部 G0–G8 才能填写。`muted_reading` 和 `voiced_playback` 分别对应手机尺寸正常速度的静音阅读与带声音播放；逐页证据需注明完整播放区间、是否读完红字、重要限制是否完整、是否空等及换页结论。未做写 not_checked 并停止发布。证据路径和结论保留原有 QA 清单中。`publish_news_output.ps1` 必须同时传 `-CoverTitle <封面主标题>`、`-CoverSubtitle <封面副标题>` 、`-AcceptanceReport`和`-EditorialReport`，脚本以“主标题，副标题”的完整封面标题命名最终 MP4，并核对标题、当前成片/封面哈希、机器检查范围、诊断标记和人工门，拒绝只凭“文件存在”交付。先按[编辑反馈](editorial-feedback-loop.md)运行ready阶段检查，生成editorial-report.json；acceptance.content_id必须相同且editorial_report_sha256为当前报告哈希。输出脚本会重新核对package/timeline/MP4/封面身份，文案或工件变动使旧报告失效。这个检查不替代真实事实和独立视听验收。
 
 维护开发与生产启动区分：先在实际安装版完成 GitHub 版本门，记录开发基线；隔离开发工作树上的修复、测试不会中途再次拉取覆盖代码。新生产任务仍严格从 GitHub 最新版启动；不能拿开发状态代替已发布版本。

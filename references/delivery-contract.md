@@ -75,7 +75,8 @@ pwsh scripts/publish_news_output.ps1 `
   -CoverSubtitle 封面副标题 `
   -FinalVideo <内部最终版.mp4> `
   -Cover <内部封面.png> `
-  -AcceptanceReport <acceptance.json>
+  -AcceptanceReport <acceptance.json> `
+  -EditorialReport <editorial-report.json>
   # -OutputRoot 缺省从 config.json 的 output.root 读取
   # 脚本以“主标题，副标题”命名最终 MP4，并与 acceptance.json 的 cover_title_full 核对
 
@@ -88,10 +89,10 @@ pwsh scripts/check_output_layout.ps1   # 输出根目录同样缺省从 config.j
 
 用户未指定主题时，第一份交付为 `topic-scout.md`，至少包含：
 
-- 5–8 个去重候选主题、完整原始信息标题及一句话摘要。
+- 目标5–8个合格去重候选、完整原始信息标题及摘要；不足如实说明，不凑数。
 - 事件时间、非国家级来源或原始发布、可点击的核验链接和抖音素材线索。
 - 时效性、公共价值、短视频表达力、素材条件和风险判断。
-- Top 3 推荐及推荐理由。
+- 最多Top 3推荐及受众关联、新增事实、成本风险/行动价值与素材可行性理由。
 - 已执行国家级媒体来源排除检查的说明。
 - 明确的选择门：等待用户选择，或依据用户的明确授权代选后继续。
 
@@ -159,7 +160,7 @@ pwsh scripts/check_output_layout.ps1   # 输出根目录同样缺省从 config.j
 
 ## 最终 QA 记录
 
-新制作的机器报告、合成来源报告和人工验收记录按 [可执行链路](executable-production.md) 绑定当前文件哈希。发布时必须传 `-AcceptanceReport <acceptance.json>`；机器PASS或文件名含FINAL都不能替代真实的视觉、听觉、事实验收。
+新制作的机器报告、合成来源报告、编辑记录和人工验收按 [可执行链路](executable-production.md) 绑定当前文件哈希。本地输出必须传 `-AcceptanceReport <acceptance.json>` 与 `-EditorialReport <editorial-report.json>`；验收记录包含content_id和editorial_report_sha256，脚本重新核对事实包、时间轴和当前两份成品。机器PASS或文件名含FINAL都不能替代真实视听与事实验收。台账、事实及后台记录只在工作区，字段见 [编辑反馈](editorial-feedback-loop.md)。平台上传仍另需用户验收及明确授权。
 
 `qa-report.json` 至少记录：
 

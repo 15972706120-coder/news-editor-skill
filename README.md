@@ -2,11 +2,11 @@
 
 # News-Editor
 
-### 从热点发现到成片交付的可复核新闻短视频 Skill
+### 从热点核验、制作到生活号发布与效果复盘的新闻短视频 Skill
 
 发现新闻、核验事实、检索真实素材、制作高清封面、完成剪辑与声音，并以逐帧质量门交付 9:16 新闻视频。
 
-[![Version](https://img.shields.io/badge/version-1.11.3-00DCE6?style=flat-square)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.15.0-00DCE6?style=flat-square)](VERSION)
 ![Status](https://img.shields.io/badge/status-active-2EA44F?style=flat-square)
 ![Canvas](https://img.shields.io/badge/canvas-1080%C3%971920-FFD400?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?style=flat-square)
@@ -29,7 +29,8 @@ News-Editor 是一个面向 Codex 与兼容 Agent 平台的新闻视频生产 Sk
 - 已有视频、文案或参考样式的二次剪辑；
 - 多主题批量生产与子智能体协作；
 - 封面、分页、配音、BGM、字幕清理或版式的定向修改；
-- 对既有成片进行逐帧、声音、素材来源和平台遮挡质检。
+- 对既有成片进行逐帧、声音、素材来源和平台遮挡质检；
+- 用户验收并明确授权后的支付宝生活号发布，以及后台逐条表现复盘。
 
 ## 核心功能
 
@@ -44,7 +45,10 @@ News-Editor 是一个面向 Codex 与兼容 Agent 平台的新闻视频生产 Sk
 | 声音系统 | MiniMax 中文配音、BGM 混音、响度与真峰值检查 | 下载素材原声默认静音；逐页校验人声完整度和混音差值 |
 | 固定版式 | 深海蓝三段式正文、9:16 封面、平台安全区和确定性坐标 | 唯一坐标源、固定字号、平台叠层预览，不自动缩字救溢出 |
 | 自动验收 | 检查帧数、时长、音频、命名、素材身份、切点、封面与遮挡 | 机器代理指标不能替代实际看图、看视频和听音频 |
-| 多 Agent 协作 | 事实、文案、视频、封面、声音、渲染和 QA 分阶段协作 | 根 Agent 固定版本与唯一时间轴；交接包带哈希，QA 只读 |
+| 多 Agent 协作 | 根 Agent 集中制作，素材与封面按需并发，独立 QA | 固定版本与唯一写入者；实际派发的交接包带哈希，QA 只读 |
+| 编辑台账 | 跨日事件占位、事实增量检查、阻塞恢复与工件身份 | 无增量改标题重做被拦；必要纠错与实质进展不受硬冷却拦截 |
+| 生活号发布 | 日常 Chrome 冷启动、账号切换、封面/声明核验、单条及批量发布 | 用户验收与明确授权在先，逐条就绪；成功以平台记录核验 |
+| 效果反馈 | 原始CSV复算、作品映射、留存/互动/关注与观察年龄 | 人均时长不当总片长；不同窗口、分母和周看板分别列示 |
 
 ## 工作架构
 
@@ -87,8 +91,8 @@ News-Editor
 ### 单主题与批量模式
 
 - 单主题任务由一个 Agent 按节点完成，适合定向修改和小批量制作。
-- 多主题或长任务可由根 Agent 固定 GitHub commit，再并行派发事实、文案、视频和封面任务。
-- 时间轴始终只有一个写入者；声音和画面在时间轴锁定后并行；最终由独立 QA 只读验收。
+- 多主题先按事件与事实占位，以config在制上限小批滚动；每条开工前刷新候选，N条是上限而非凑数目标。
+- 根 Agent 集中完成文案、时间轴、声音与渲染，素材/封面确有独立工作时才派侦察；时间轴单一写入，最终由独立QA只读验收。
 - 子智能体只回传结构化交接包和关键决定，长日志、截图和媒体证据留在工作区，减少上下文占用。
 
 ## 成片演示
@@ -169,13 +173,15 @@ News-Editor
 ## 标准制作流程
 
 1. **版本锁定**：每个新请求先实时核对 GitHub `main`，更新后重新加载 Skill。
-2. **选题与事实**：发现候选、过滤来源、双来源核验并锁定原始信息标题。
-3. **素材获取**：精准检索并下载真实视频；另行检索高清封面图和必要的信息截图。
+2. **选题与事实**：按受众与新增事实筛选，核事件/素材/发布/进展时间，双来源核验并在跨日台账占位。
+3. **素材获取**：先探针确认真实视频与独立封面可行性，再进入配音与渲染；失败保留可靠工件并切换合格题。
 4. **素材体检**：生成接触表与目标裁切预览，登记可用时间码、字幕区、主体和误导风险。
 5. **文案与时间轴**：按信息任务拆页，使用实测配音与阅读时间确定页长，镜头切换与页面切换分别规划。
 6. **渲染与混音**：固定版式渲染，MiniMax 分页配音，BGM 混音，再统一合成。
 7. **逐帧 QA**：检查封面、第 1 帧、每页中点、切点前后、末帧、音频和平台叠层。
-8. **稳定发布**：只有 G0–G8 全部通过才标记 `FINAL_READY`，发布目录只保留最终视频和封面。
+8. **稳定交付**：编辑记录绑定当前文件且G0–G8全部通过才标记FINAL_READY，输出区只保留最终视频和封面。
+9. **平台发布**：用户验收及明确授权后核账号、就绪、封面与按名称选择作者声明，成功记录平台作品ID和真实发布时间；未知结果先盘点。
+10. **效果复盘**：按真实发布与观察时刻关联后台记录，采集统一窗口，比较中位浏览、留存、收藏分享和关注。
 
 ## 质量标准
 
@@ -217,11 +223,13 @@ git clone https://github.com/15972706120-coder/news-editor-skill.git $skillRoot
 
 ### 2. 首次环境检查
 
+预检前先执行下方第4节版本门，最终取得LATEST_READY后再运行；更新后必须重新加载并复核。
+
 ```powershell
 pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
 ```
 
-完整制作需要 PowerShell 7、Python/Pillow、浏览器检索能力、agent-browser、yt-dlp、FFmpeg/FFprobe、Node.js、微软雅黑，以及 MiniMax API 环境变量。选择 Remotion 实现时才需要完整 Remotion 工程依赖。不要把 API Key、Cookie 或浏览器登录信息提交到 GitHub 或发送到聊天中。
+Windows完整制作与平台发布需要PowerShell 7、Python/Pillow、浏览器检索能力、agent-browser、yt-dlp、FFmpeg/FFprobe、Node.js、微软雅黑，以及 MiniMax API 环境变量。选择Remotion实现时才需要完整工程依赖；平台发布必须使用用户日常Chrome及桌面控制，核对目标生活号。新增台账、编辑记录和CSV复盘工具只依赖Python标准库，可跨平台执行；这不代表Windows发布管线已经在macOS验证。不要把 API Key、Cookie 或浏览器登录信息提交到 GitHub 或发送到聊天中。
 
 ### 3. 调用
 
@@ -239,6 +247,10 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
 使用 $news-editor 只修改现有视频封面，保持正文、声音和时长不变。
 
 使用 $news-editor 质检这条视频，不要修改文件，只列出阻止发布的问题和证据。
+
+内容已验收，使用 $news-editor 将我点名的这两条发布到手机通讯生活。
+
+使用 $news-editor 读取这份后台CSV，核对逐条表现和观察窗口，给出下一轮选题建议。
 ```
 
 ### 4. 每次运行前核对最新版
@@ -262,7 +274,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\ensure_latest_skill.ps1') -
 - 日期目录下一层是从 `1.` 开始连续编号的中文新闻目录。
 - 每个新闻目录默认只保存与完整封面标题同名的最终 MP4（封面主标题 + 全角逗号 + 封面副标题）和 `封面.png`。
 - 原片、工程、配音、预览、QA、日志和历史版本保存在项目工作区，不污染发布目录。
-- Cookie、浏览器 profile、临时签名地址和下载元数据不得进入 Git。
+- Cookie、浏览器profile、临时签名地址、后台原始导出、用户授权记录和生产台账不得进入Git。
 
 具体命名与路径以 [config.json](config.json) 为唯一机器事实源，详见 [交付契约](references/delivery-contract.md)。
 
@@ -274,6 +286,8 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\ensure_latest_skill.ps1') -
 | [当前制作配置](references/current-production-profile-v2.md) | 开始制作或修订旧项目时 |
 | [热点发现](references/topic-discovery.md) | 用户没有提供明确主题时 |
 | [完整编辑 SOP](references/editorial-sop.md) | 完整制作或跨多个节点的任务 |
+| [编辑台账与效果反馈](references/editorial-feedback-loop.md) | 连续生产、同题增量、纠错、发布恢复与后台复盘 |
+| [支付宝发布管线](references/alipay-publish-pipeline.md) | 已验收且有明确授权的单条或批量平台发布 |
 | [抖音素材链路](references/douyin-news-footage-pipeline.md) | 抖音检索、下载或恢复失败节点时 |
 | [可执行制作链路](references/executable-production.md) | 时间轴、渲染、配音、混音和合成 |
 | [封面与平台布局](references/cover-platform-layout-v2.md) | 制作封面、正文或平台预览时 |
@@ -300,9 +314,12 @@ python -X utf8 (Join-Path $skillRoot 'scripts\check_skill_consistency.py')
 python -X utf8 (Join-Path $skillRoot 'scripts\test_cover_geometry.py')
 python -X utf8 (Join-Path $skillRoot 'scripts\test_production_contract.py')
 python -X utf8 (Join-Path $skillRoot 'scripts\test_orchestration_contract.py')
+python -X utf8 (Join-Path $skillRoot 'scripts\test_editorial_contract.py')
+python -X utf8 (Join-Path $skillRoot 'scripts\test_editorial_ledger.py')
+python -X utf8 (Join-Path $skillRoot 'scripts\test_performance_review.py')
 ```
 
-`hooks/pre-commit` 会检查版本与配置一致性、失效链接、资产、Python 语法、封面几何、时间轴/声音/混合媒体契约以及子智能体交接哈希。需要验证真实编码链时运行 `scripts/smoke_test_mixed_renderer.py`；它只生成内部诊断样片，不是新闻产物。
+`hooks/pre-commit` 会检查版本与配置一致性、失效链接、资产、Python 语法、封面几何、时间轴/声音/混合媒体契约以及子智能体交接哈希、编辑记录身份、台账占位/授权/恢复与后台数据口径。可用NEWS_EDITOR_PYTHON为提交门指定实际Python可执行文件。需要验证真实编码链时运行 `scripts/smoke_test_mixed_renderer.py`；它只生成内部诊断样片，不是新闻产物。
 
 ## 设计边界
 

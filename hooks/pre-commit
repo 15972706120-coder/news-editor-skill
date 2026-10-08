@@ -1,20 +1,27 @@
 #!/bin/sh
 # News-Editor skill 一致性门禁（通过 git config core.hooksPath hooks 启用）
 ROOT="$(git rev-parse --show-toplevel)"
-python "$ROOT/scripts/check_skill_consistency.py" || {
+PYTHON_BIN="${NEWS_EDITOR_PYTHON:-python}"
+"$PYTHON_BIN" "$ROOT/scripts/check_skill_consistency.py" || {
   echo ""
   echo "一致性检查未通过：先修复上方 FAIL 再提交。"
   exit 1
 }
-python "$ROOT/scripts/test_cover_geometry.py" || {
+"$PYTHON_BIN" "$ROOT/scripts/test_cover_geometry.py" || {
   echo "封面几何门回归测试未通过：修复后再提交。"
   exit 1
 }
-python -m unittest discover -s "$ROOT/scripts" -p 'test_production_contract.py' || {
+"$PYTHON_BIN" -m unittest discover -s "$ROOT/scripts" -p 'test_production_contract.py' || {
   echo "时间轴、声音绑定与视频验收回归失败。"
   exit 1
 }
-python -m unittest discover -s "$ROOT/scripts" -p 'test_orchestration_contract.py' || {
+"$PYTHON_BIN" -m unittest discover -s "$ROOT/scripts" -p 'test_orchestration_contract.py' || {
   echo "子智能体任务包与交接契约回归失败。"
   exit 1
 }
+for test_file in test_editorial_contract.py test_editorial_ledger.py test_performance_review.py; do
+  "$PYTHON_BIN" -m unittest discover -s "$ROOT/scripts" -p "$test_file" || {
+    echo "编辑台账、事实身份或后台口径回归失败。"
+    exit 1
+  }
+done

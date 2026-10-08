@@ -1,8 +1,8 @@
 interface:
   display_name: "News-Editor"
-  short_description: "发现科技热点并用真实抖音素材制作新闻视频"
+  short_description: "核验热点与素材时间，去重制作真实新闻视频，验收后发布生活号并复盘逐条表现"
   brand_color: "#00DCE6"
-  default_prompt: "使用 $news-editor 从非国家级来源搜索今天的科技热点，按事件、品牌、技术和人物方向扩展选题，确认后用真实抖音素材制作竖屏短视频。"
+  default_prompt: "使用 $news-editor 按受众关联与新增事实筛选热点，核验来源和素材时间，小批制作真实新闻视频，验收及明确授权后发布到生活号，并按统一观察窗口复盘。"
 
 policy:
   allow_implicit_invocation: true
