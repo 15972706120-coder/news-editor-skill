@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "status": "superseded",
+  "status": "active",
   "basis": "User feedback reference normalized to 1080x1920; footage enlarged and copy group moved down by approximately 200px relative to the supplied reference.",
   "supersedes": "layout-lock-v1.json",
   "canvas": {
@@ -143,5 +143,5 @@
     ],
     "final_pixel_format": "yuv420p"
   },
-  "superseded_by": "layout-lock-v3.json"
+  "legacy_note": "历史锁定文件：现行坐标源是 layout-lock-v3.json（见 config.json 的 layout.active_lock_file）。status 保持 active 只为让 1.15.0 及更早的 ensure_latest_skill.ps1 在快进升级后通过校验；全部生产机升级到 2.0.0 之后，可在后续版本改为 superseded。"
 }

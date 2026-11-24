@@ -15,7 +15,8 @@
 - **修复旧版隐患**（渲染与混音链路，均在复刻样片时暴露）：非 30fps 源素材经帧率转换后片尾少 1–2 帧，导致成片变短；末帧时长为 0 时 MP4 会把末帧标为丢弃（固定 14 秒时被毫秒取整掩盖，时长可变后必现）；Python 3.12 之前的 `wave` 模块读不了 24 位 WAV；单遍 `loudnorm` 滤镜会吞掉片尾几十毫秒；封面固定 144px 时超过 6 个字必然溢出。
 - **资产**：新增 `assets/references/v3-reference/`（四条样片原件、封面与正文关键帧、接触表、字幕滑入逐帧图、字体细节图）。旧分页成片的参考图、参考视频与展示资产移到 `assets/legacy-v2/` 与 `assets/references/locked-layout/legacy-v2/`，仅供回看旧成片。
 - **文档**：`SKILL.md` 重写并精简；`topic-discovery.md`、`editorial-sop.md`、`visual-audio-template.md`、`locked-layout-validation.md`、`executable-production.md`、`delivery-gates.md`、`quality-standards.md` 重写；`current-production-profile-v2.md` 与 `cover-platform-layout-v2.md` 由 V3 版取代；交付契约、反馈闭环、素材手册、环境手册、编排规范、发布管线与配音文档按新流程局部修订。
-- **验证范围**：在 macOS 上用四条样片自己的素材与文案各复刻一遍并逐帧对比，全链路与冒烟测试通过，单元测试通过；Windows 生产机尚未实跑，首次使用请先运行冒烟测试。配音模式只用合成音频验证了管线，未做真实 MiniMax 回归。响度目标取自平台转码件，平台是否二次归一化未知。
+- **升级兼容**：1.15.0 及更早的 `ensure_latest_skill.ps1` 在快进之后，仍会用它自己内存里的旧文件清单再校验一次。因此本次保留 `references/current-production-profile-v2.md` 作为不含规则的转向存根，`layout-lock-v2.json` 维持 `status=active` 并加说明；缺少这两项时生产机首次升级会被卡在 `BLOCKED_SKILL_VERSION`。以后再改名版本门清单里的文件，同样要为上一版脚本保留一个版本的存根，等全部生产机升级后再清理。
+- **验证范围**：在 macOS 上用四条样片自己的素材与文案各复刻一遍并逐帧对比，全链路与冒烟测试通过，单元测试通过；按 1.15.0 版本门的升级后校验逻辑逐项核对新目录树可通过。Windows 生产机尚未实跑，首次使用请先运行冒烟测试。配音模式只用合成音频验证了管线，未做真实 MiniMax 回归。响度目标取自平台转码件，平台是否二次归一化未知。
 - **保留不变**：GitHub 版本门与子智能体编排、国家级媒体来源排除、双来源核验与四类时间、编辑台账与效果反馈、输出区/工作区契约与文件命名、支付宝发布管线。
 
 ## 1.15.0 — 2026-10-08
