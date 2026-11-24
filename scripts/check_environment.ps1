@@ -467,13 +467,14 @@ $requiredSkillFiles = @(
     'references\visual-audio-template.md',
     'references\quality-standards.md',
     'scripts\validate_news_video.py',
+    'scripts\render_news_brief.py',
     'assets\audio\bgm-01.mp3',
     'assets\audio\bgm-02.mp3',
     'assets\audio\bgm-03.mp3',
     'assets\references\cover-style-reference.png',
     'assets\references\cover-typography-reference.png',
-    'assets\references\in-video-typography-reference.png',
-    'assets\references\finished-video-reference.mp4'
+    'assets\references\v3-reference\reference-contact-sheet.png',
+    'assets\references\v3-reference\sample-unmarried-couple.mp4'
 )
 $missingSkillFiles = [System.Collections.Generic.List[string]]::new()
 foreach ($relativePath in $requiredSkillFiles) {

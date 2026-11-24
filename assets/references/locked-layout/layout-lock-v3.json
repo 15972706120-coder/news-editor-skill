@@ -1,0 +1,197 @@
+{
+  "version": "3.0",
+  "status": "active",
+  "basis": "账号四条高播放样片（12306更新、未婚情侣同居生子、非洲婚礼嫁妆、花坛藏尸案）的 720x1280@25fps 平台转码件逐帧实测，按 1.5 倍归一到 1080x1920；样片原件与关键帧见 assets/references/v3-reference/。",
+  "supersedes": "layout-lock-v2.json",
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+  "colors": {
+    "canvas_black": "#000000",
+    "title_yellow": "#FFDE00",
+    "white": "#FFFFFF",
+    "black": "#000000",
+    "cover_cyan": "#0AEAE6",
+    "result_red": "#B0463A",
+    "source_gray": "#717171",
+    "brief_background_stops": [
+      [
+        0.0,
+        "#041A50"
+      ],
+      [
+        0.45,
+        "#163A9C"
+      ],
+      [
+        1.0,
+        "#0CA3EA"
+      ]
+    ],
+    "brief_panel_rgba": [
+      2,
+      16,
+      48,
+      158
+    ]
+  },
+  "cover": {
+    "canvas_fill": "canvas_black",
+    "background_video": [
+      0,
+      240,
+      1080,
+      1440
+    ],
+    "headline_visible_bbox": [
+      158,
+      1136,
+      921,
+      1240
+    ],
+    "subline_visible_bbox": [
+      239,
+      1297,
+      842,
+      1376
+    ],
+    "handwritten_line_bbox": [
+      135,
+      1434,
+      945,
+      1494
+    ],
+    "headline_font_px": 144,
+    "subline_font_px": 112,
+    "frame_overlay": "../cover-frame-lines-v3.png"
+  },
+  "body": {
+    "headline_block": {
+      "bottom_y": 393,
+      "center_x": 540,
+      "max_width": 1020,
+      "font_px": 60,
+      "weight_stroke_px": 2,
+      "box_pad_x": 30,
+      "box_pad_y": 13,
+      "box_corner_radius": 6,
+      "oblique_shear": 0.17,
+      "outline_px": 5,
+      "styles": [
+        "yellow_tag",
+        "black_tag",
+        "yellow_italic",
+        "white_italic"
+      ],
+      "tag_line_height": 86,
+      "italic_line_height": 74,
+      "line_gap": 10,
+      "min_font_px": 50
+    },
+    "result_line": {
+      "center_x": 540,
+      "max_width": 1050,
+      "font_px": 50,
+      "weight_stroke_px": 1,
+      "gap_above": 22,
+      "oblique_shear": 0.12,
+      "outline_px": 4,
+      "min_font_px": 42
+    },
+    "disclaimer": {
+      "text": "视频资料与新闻事件无关",
+      "font_px": 30,
+      "weight_stroke_px": 0,
+      "outline_px": 3,
+      "left_x": 48,
+      "gap_above": 42,
+      "gap_below": 6
+    },
+    "footage": {
+      "left_x": 0,
+      "width": 1080,
+      "bottom_y": 1218,
+      "gap_above": 40,
+      "background_blur_sigma": 40,
+      "background_zoom": 1.0
+    },
+    "caption": {
+      "center_x": 540,
+      "center_y": 1332,
+      "max_width": 1000,
+      "font_px": 48,
+      "weight_stroke_px": 1,
+      "line_pitch": 60,
+      "max_lines": 4,
+      "oblique_shear": 0.1,
+      "outline_px": 5,
+      "slide_frames": 6,
+      "slide_taps": 14,
+      "min_font_px": 42
+    },
+    "source_safe_bbox": [
+      800,
+      1838,
+      226,
+      30
+    ],
+    "source_font_px": 18
+  },
+  "brief_text": {
+    "headline": {
+      "center_x": 540,
+      "center_y": 315,
+      "max_width": 1000,
+      "font_px": 92,
+      "weight_stroke_px": 2,
+      "oblique_shear": 0.17,
+      "outline_px": 3
+    },
+    "panel": [
+      45,
+      393,
+      990,
+      1175
+    ],
+    "text": {
+      "center_x": 540,
+      "max_width": 930,
+      "font_px": 54,
+      "weight_stroke_px": 0,
+      "line_pitch": 64,
+      "paragraph_gap": 154,
+      "first_line_center_y": 530,
+      "last_line_center_max_y": 1500,
+      "oblique_shear": 0.0
+    },
+    "caption": {
+      "oblique_shear": 0.0,
+      "accumulate": true
+    },
+    "background": {
+      "drift_px": 240
+    }
+  },
+  "platform": {
+    "top_title_bar_until_y": 240,
+    "right_reserved_from_x": 850,
+    "right_reserved_y": [
+      700,
+      1810
+    ],
+    "bottom_reserved_from_y": 1540,
+    "caption_max_width": 1000
+  },
+  "media_quality": {
+    "preferred_source_short_edge_px": 720,
+    "preferred_max_upscale_ratio": 1.5,
+    "hard_max_upscale_ratio": 2.0,
+    "final_encode_crf_range": [
+      18,
+      20
+    ],
+    "final_pixel_format": "yuv420p"
+  }
+}

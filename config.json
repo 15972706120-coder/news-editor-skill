@@ -1,8 +1,7 @@
 {
-  "version": "1.15.0",
+  "version": "2.0.0",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
-
   "skill_update": {
     "repository": "https://github.com/15972706120-coder/news-editor-skill.git",
     "remote": "origin",
@@ -12,7 +11,6 @@
     "network_timeout_seconds": 12,
     "network_attempts": 2
   },
-
   "orchestration": {
     "enabled": true,
     "remote_gate_owner": "orchestrator",
@@ -37,7 +35,6 @@
     },
     "note": "一个用户请求只由根编排者联网验版；子智能体必须持有同一运行清单及其SHA-256，只做固定commit的本地证明。独立运行、清单缺失、过期或不匹配时不得使用子模式。"
   },
-
   "editorial_feedback": {
     "package_schema": "news-editor-editorial/v1",
     "report_schema": "news-editor-editorial-report/v1",
@@ -46,11 +43,14 @@
     "requested_count_is_upper_limit": true,
     "dedup_policy": "同事件无新增事实阻断；事务占位覆盖在制、草稿、已验收、已发布与阻塞；纠错和实质进展可继续，语义必须编辑核查",
     "cooldown_policy": "提示，不以统一事件/题材时限否决实质进展或必要纠错",
-    "observation_windows_hours": [24, 72, 168],
+    "observation_windows_hours": [
+      24,
+      72,
+      168
+    ],
     "snapshot_policy": "记录真实published_at、observed_at与指标分母；累计快照不自动视为固定窗口",
     "note": "阈值为试运行配置，不是传播最优值。台账和事实/效果记录仅在工作区；不提交账户数据、凭据、原始后台导出或生产台账。"
   },
-
   "output": {
     "root": "D:\\每日新闻",
     "date_dir_pattern": "YYYY-MM-DD（北京时间生产日期）",
@@ -61,7 +61,6 @@
     "cover_title_full_definition": "完整封面标题 = 封面主标题 + 全角逗号 + 封面副标题，与封面两行文字逐字一致，用作最终 MP4 文件名",
     "cover_name": "封面.png"
   },
-
   "platform_publish": {
     "_readme": "平台发布 FACT：发布入口、账号与操作策略的唯一机器事实源；执行流程见 references/alipay-publish-pipeline.md。",
     "platform": "支付宝内容创作平台（生活号+）",
@@ -72,28 +71,54 @@
     "browser_launch": {
       "chrome_path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
       "cold_start": "Chrome 未运行时按名称 open_application 找不到，须用完整路径 Start-Process，参数 --start-maximized --new-window + 发布页 URL；启动后 wait 2-3 秒并确认加载",
-      "forbidden_args": ["--user-data-dir", "--incognito"]
+      "forbidden_args": [
+        "--user-data-dir",
+        "--incognito"
+      ]
     },
     "login_mode": "账户登录标签 + Chrome 密码管理器自动填充；Agent 不键入不回传凭据",
     "account_switch": {
       "rule": "登录后平台停留在上次使用的应用，不保证目标生活号；以页面左上角账号卡名称为唯一判据，非目标时点账号卡（「切」标记）打开「请选择应用」弹窗，按名称+ID 选中目标并确定，复核生效",
       "modal_title": "请选择应用",
-      "known_life_accounts": ["双V会员", "手机通讯生活", "冲鸭攒话费", "名称释放"]
+      "known_life_accounts": [
+        "双V会员",
+        "手机通讯生活",
+        "冲鸭攒话费",
+        "名称释放"
+      ]
     },
     "fast_click": {
       "window_lock": "进入发布页后固定窗口状态（最大化或保持尺寸不变），全程不得拖动/缩放/换显示器，否则坐标作废",
       "mode": "基准截图标定固定坐标后对稳定控件连续点击（点击间 wait 0.3-1 秒），不逐次截图",
-      "checkpoints": ["登录后账号校验", "每条上传就绪门", "每条封面应用后预览更新", "批量发布进度 N/N", "内容管理逐条核对"]
+      "checkpoints": [
+        "登录后账号校验",
+        "每条上传就绪门",
+        "每条封面应用后预览更新",
+        "批量发布进度 N/N",
+        "内容管理逐条核对"
+      ]
     },
     "cover_mode": "优先点击封面图片推荐中与预览大图一致的缩略图；缩略图高亮不等于已设置，确认发布被「请选择视频封面」拦截时重新点击该缩略图一次，仍失败才点封面区第一格「上传封面」走原生对话框传主题目录封面.png；注意表单下方「消息封面设置」的上传封面按钮是另一字段",
     "item_switch": "多条目编辑点击左队列缩略图槽位切换，禁止用滚轮滚动切换条目",
+    "publish_title": "发布标题默认取时间轴 publish_title；未填写时用标题块各行以空格连接（渲染报告给出 derived_publish_title），不得与画面事实冲突",
     "single_publish": {
       "_readme": "单视频发布与批量的关键差异；完整流程见管线第 9 节",
       "entry": "Ctrl+T 新标签页打开 publish_url 获得干净会话（页面标题「支付宝内容创作平台」，空白上传页）；不复用遗留草稿标签页（标题「商家平台」）",
       "declaration_option": "按名称选「内容无需标注」——单页布局为最后一项（第一项是内容为转载）；批量弹窗中才是第一项",
       "publish_button": "页面底部「确认发布」，无确认弹窗、无进度环，成功直接跳内容管理-已发布；左侧「保 存」勿点错",
-      "skip_fields": ["作品描述", "话题与地点", "征稿活动", "加入合集", "关联推荐", "直播预告", "AI智能优化", "评论设置(默认展示全部)"],
-      "forbidden_clicks": ["消息封面设置区的上传封面（假入口，另一字段）"],
+      "skip_fields": [
+        "作品描述",
+        "话题与地点",
+        "征稿活动",
+        "加入合集",
+        "关联推荐",
+        "直播预告",
+        "AI智能优化",
+        "评论设置(默认展示全部)"
+      ],
+      "forbidden_clicks": [
+        "消息封面设置区的上传封面（假入口，另一字段）"
+      ],
       "ax_tactics": "radio 无选中态，点击后以 focused 为落点信号；每次点击可能使状态过期，重新观察再点下一项；发布前视觉复核三个实心选中（立即发布/公开/内容无需标注）",
       "verified": "2026-09-15 折叠iPhone，eSIM开卡指南 单视频实跑"
     },
@@ -103,12 +128,69 @@
     "verify_rule": "以内容管理按平台作品ID、标题与实际发布时间逐条核对并更新台账；结果未知先核对已发布/审核中/未通过/待优化/草稿，不以列表短暂空白判断失败；确认缺失且当前文件授权仍有效时才补发，禁止整批重发",
     "verified": "2026-09-14 双视频实跑（打了21个耳洞、女孩硬拉140公斤）；2026-09-15 修订冷启动、连击、生活号切换与封面推荐流程并完成单视频实跑（折叠iPhone，eSIM开卡指南）"
   },
-
   "workspace": {
     "dir_name": ".news-editor-work",
     "note": "工作区固定在项目根下，与输出区物理分离"
   },
-
+  "topic_screening": {
+    "_readme": "选题分级的唯一事实源：先过红线，再定 S/A/B，同级按 beat_priority 排序。依据、实测条均与样例见 references/topic-discovery.md。",
+    "grades": {
+      "S": "当天大多数人都在关心，或直接关系到观众的钱包、日程、权益：重大民生政策与时间表、有官方结论的争议性社会事件、放假/价格/补贴/办理等实用信息、全民讨论的科技或品牌事件。当日优先制作",
+      "A": "主体、时间、进展清楚，但影响面或讨论度低一级：地方性事件、单一品牌动态、国际见闻、暖闻奇闻。择优制作，用来补题材多样性",
+      "B": "只有情绪或标题、无可核信源、无新增事实、与账号受众无关、素材不可做或风险过高。默认不做"
+    },
+    "per_run": {
+      "candidate_count_range": [
+        6,
+        10
+      ],
+      "top_recommendations": 3,
+      "note": "合格不足时如实少交付，不凑数"
+    },
+    "beat_priority": [
+      "people_emotion_story",
+      "civic_livelihood",
+      "phone_digital_risk",
+      "consumer_rights_food_safety",
+      "practical_schedule",
+      "tech_brand_event",
+      "international_oddity"
+    ],
+    "beat_labels": {
+      "people_emotion_story": "人物故事/情感纠纷",
+      "civic_livelihood": "社会民生（工资、消费、出行、政策落地）",
+      "phone_digital_risk": "手机数码与使用风险",
+      "consumer_rights_food_safety": "消费维权/食品安全",
+      "practical_schedule": "放假、办理、补贴等清单型实用信息",
+      "tech_brand_event": "科技产业与品牌大事件",
+      "international_oddity": "国际见闻/奇闻暖闻"
+    },
+    "red_lines": [
+      "无两个独立可核来源",
+      "改写度不足（照搬单一稿件）",
+      "时间错位（旧闻冒充今日、素材日期不明却当现场）",
+      "主要信息只来自国家级媒体",
+      "未成年人隐私、血腥伤亡细节、性侵细节或可能造成二次伤害",
+      "未证实的网传、匿名爆料被写成确定事实"
+    ],
+    "publish_windows_local": [
+      "12:00",
+      "19:00"
+    ],
+    "publish_windows_note": "账号冲刺方案锚定的双高峰时段；突发热点不等时段"
+  },
+  "audio": {
+    "default_mode": "bgm_only",
+    "_readme": "账号高播放样片均为「字幕承载信息 + BGM」，无配音；音频模式的唯一事实源。",
+    "modes": {
+      "bgm_only": "默认。BGM + 观众读字幕；信息全部写在字幕里，节奏按阅读速度排",
+      "original_bgm": "素材原话本身是新闻时使用：仅在 first_hand_quote 片段保留原声，BGM 在原声区间自动压低",
+      "tts_bgm": "用户明确要求配音时才用：逐字幕块 MiniMax 配音，字幕随配音到达"
+    },
+    "bgm_target_lufs": -16.0,
+    "original_sound_role": "first_hand_quote",
+    "note": "BGM 从 bgm_library 中按题材情绪选择并在 edit-plan 记录；原素材人声不得与配音同时争抢信息"
+  },
   "voice": {
     "provider": "MiniMax T2A v2",
     "api_base_urls": {
@@ -123,38 +205,102 @@
     "pitch": 0,
     "vol": 1.0,
     "emotion": "calm",
-    "decided": "2026-09-04 用户五音色试听定版"
+    "decided": "2026-09-04 用户五音色试听定版",
+    "usage": "仅 tts_bgm 模式使用；默认 bgm_only 不调用 TTS"
   },
-
   "mix": {
     "bgm_source": "assets/audio/bgm-01.mp3",
-    "bgm_segment_seconds": [0, 14],
-    "bgm_gain_db": -9.4,
+    "bgm_segment_seconds": [
+      0,
+      14
+    ],
     "voice_target_segment_lufs": -18.0,
-    "voice_delay_ms": [167, 7383],
-    "limiter_threshold_linear": 0.668,
-    "final_format": { "codec": "aac", "sample_rate_hz": 48000, "channels": 2, "bitrate": "192k" },
-    "target_integrated_lufs": -16.0,
-    "integrated_lufs_range": [-17.0, -15.0],
-    "max_true_peak_dbtp": -3.0,
+    "loudness_targets": {
+      "bgm_only": {
+        "target_integrated_lufs": -12.5,
+        "integrated_lufs_range": [
+          -14.0,
+          -11.5
+        ],
+        "max_true_peak_dbtp": -1.5
+      },
+      "original_bgm": {
+        "target_integrated_lufs": -12.5,
+        "integrated_lufs_range": [
+          -14.0,
+          -11.5
+        ],
+        "max_true_peak_dbtp": -1.5,
+        "prominent_max_lufs": -12.0,
+        "bgm_solo_lufs": -24.0,
+        "cap_slack_db": 2.0
+      },
+      "tts_bgm": {
+        "target_integrated_lufs": -16.0,
+        "integrated_lufs_range": [
+          -17.0,
+          -15.0
+        ],
+        "max_true_peak_dbtp": -3.0
+      },
+      "_note": "bgm_only 与 original_bgm 的目标取自账号四条高播放样片的平台转码件实测（综合 -11.1 至 -12.8 LUFS，真峰值 -1.5 至 -3.0 dBTP）；tts_bgm 沿用 2026-09-04 配音定版的响度。"
+    },
+    "final_format": {
+      "codec": "aac",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "bitrate": "192k"
+    },
     "voice_bgm_delta_db": 12.0,
     "delta_tolerance_db": 1.0,
     "gain_iteration_max": 3,
-    "notes": "先按 voice_target_segment_lufs 把各页人声归一并由 BGM 增益保持 12dB 差，再整体微调总增益至 LUFS 区间；人声增益超过约 +4dB 会持续顶限幅器（天花板泵），需控制单页增益"
+    "notes": "突出音频（原声或配音）先按增益归一到 voice_target_segment_lufs，BGM 在其区间保持 voice_bgm_delta_db 的差值，区间外回到 bgm_solo_lufs；再整体微调总增益至对应模式的 LUFS 区间，原声模式以 prominent_max_lufs 封顶。响度用先测量后加增益的方式实现，避免单遍 loudnorm 吞掉片尾。"
   },
-
   "video": {
     "width": 1080,
     "height": 1920,
     "fps": 30,
-    "duration_seconds": 14.0,
-    "total_frames": 420,
     "cover_frames": 1,
     "duration_profiles": {
-      "standard_seconds": 14.0,
-      "compact_seconds_range": [7.0, 9.0],
-      "compact_default_pages": 1,
-      "selection_rule": "素材和信息足够时使用标准档；真实可用视频不足时先压缩信息任务并选择7–9秒紧凑档，不重复、慢放或堆静态图凑14秒"
+      "brief_seconds_range": [
+        9,
+        13
+      ],
+      "hard_max_seconds": 15,
+      "selection_rule": "时长由字幕块数量和阅读节奏决定，不凑时长：3–4 个字幕块通常落在 9–13 秒；超过 13 秒先删重复信息，仍需延长须取得用户授权且不超过硬上限"
+    },
+    "timing": {
+      "first_caption_delay_seconds": 0.2,
+      "reading_base_seconds": 1.6,
+      "reading_per_unit_seconds": 0.045,
+      "min_block_seconds": 2.4,
+      "first_voice_lead_seconds": 0.3,
+      "voice_gap_seconds": 0.1,
+      "tail_hold_seconds": 0.4,
+      "text_line_reveal_seconds": 0.75,
+      "text_final_hold_seconds": 2.5,
+      "note": "阅读下限按账号四条高播放样片的字幕停留实测拟合（每块约 2.4–4.5 秒）；编辑可在下限之上按理解难度加长"
+    },
+    "copy_limits": {
+      "headline_line_units": 17,
+      "result_line_units": 21,
+      "caption_line_units": 20,
+      "publish_title_units": 30,
+      "caption_blocks_range": [
+        3,
+        4
+      ],
+      "caption_total_units_range": [
+        80,
+        140
+      ]
+    },
+    "footage": {
+      "max_clips": 5,
+      "min_clip_seconds": 1.6,
+      "max_clip_seconds": 5.0,
+      "transition": "cut",
+      "note": "镜头之间硬切；不叠加转场、不重复用同一时段、不变速凑时长"
     },
     "still_media": {
       "max_body_ratio": 0.3,
@@ -163,36 +309,65 @@
       "max_motion_zoom": 1.1,
       "max_anchor_shift": 0.1,
       "motion_supersample": 4,
-      "note": "图片和信息截图仅作少量补充，必须有来源与事实用途，并用克制的关键帧缩放或平移；关键帧运动渲染前必须先按 motion_supersample 整数倍超采样，再由 zoompan 输出到目标尺寸，禁止在目标分辨率上直接采样（整像素抖动会造成可见卡顿）"
+      "note": "图片和信息截图仅作少量补充，必须有来源与事实用途，并用克制的关键帧缩放或平移；关键帧运动渲染前必须先按 motion_supersample 整数倍超采样，再由 zoompan 输出到目标尺寸，禁止在目标分辨率上直接采样"
     },
-    "crf_range": [18, 20],
+    "overlays": {
+      "max_count": 1,
+      "max_seconds": 4.0,
+      "note": "评论截图只作讨论氛围，不得作为事实来源；字幕与标题不得把评论内容写成事实"
+    },
+    "crf_range": [
+      18,
+      20
+    ],
     "pixel_format": "yuv420p"
   },
-
   "layout": {
-    "active_lock_file": "assets/references/locked-layout/layout-lock-v2.json",
+    "active_lock_file": "assets/references/locked-layout/layout-lock-v3.json",
     "human_readable_mirror": "references/locked-layout-validation.md",
     "tolerance_px": 2
   },
-
   "cover": {
     "frame_overlay": "assets/references/cover-frame-lines-v3.png",
     "headline_font_px": 144,
+    "headline_min_font_px": 108,
     "subline_font_px": 112,
-    "headline_fullchar_range": [4, 7],
+    "subline_min_font_px": 72,
+    "headline_fullchar_range": [
+      4,
+      7
+    ],
     "headline_hard_max": 8,
-    "subline_fullchar_range": [5, 10],
+    "subline_fullchar_range": [
+      5,
+      10
+    ],
     "subline_hard_max": 12,
+    "max_text_width": 960,
     "thumbnail_check": "270x360",
+    "source_policy": {
+      "preferred": "image",
+      "allowed": [
+        "image",
+        "video_frame"
+      ],
+      "note": "优先单独检索的高清图片；没有合格图片时可用已下载原片的清晰帧（source_kind=video_frame）。两种来源都必须零字幕、零水印、零模糊、零马赛克，并过同一套四项人工门与几何门"
+    },
     "quality": {
       "preferred_max_upscale_ratio": 1.0,
       "hard_max_upscale_ratio": 1.5,
       "scale_ratio_tolerance": 0.005,
-      "note": "封面专用内部质量门，不是平台公布阈值。输入必须是单独检索/取得的原始高清图片，不得从视频抽帧；按裁切后有效像素计算；通过几何检查仍须人工清晰度复核。"
+      "note": "封面专用内部质量门，不是平台公布阈值。按裁切后有效像素计算；通过几何检查仍须人工清晰度复核。"
     },
     "editorial_selection": {
-      "candidate_count_range": [3, 5],
-      "score_scale": [1, 5],
+      "candidate_count_range": [
+        3,
+        5
+      ],
+      "score_scale": [
+        1,
+        5
+      ],
       "minimum_each_dimension": 4,
       "minimum_total_score": 17,
       "dimensions": [
@@ -201,11 +376,16 @@
         "topic_relevance",
         "visual_impact"
       ],
-      "tie_break_order": ["topic_relevance", "visual_impact", "technical_clarity", "subject_legibility"],
+      "tie_break_order": [
+        "topic_relevance",
+        "visual_impact",
+        "technical_clarity",
+        "subject_legibility"
+      ],
       "note": "四项均为必须实际查看原图、无标题3:4底图和270x360无标题缩略图后的人工编辑评分；任一项低于单项门槛即淘汰，不得用总分补偿。"
-    }
+    },
+    "font_rule": "144/112 是上限字号；文案较宽时按 max_text_width 等比减小到下限字号为止（样片封面即为自适应字号）。低于下限仍放不下必须改写文案，不得横向压缩"
   },
-
   "bgm_library": [
     "assets/audio/bgm-01.mp3",
     "assets/audio/bgm-02.mp3",

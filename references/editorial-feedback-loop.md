@@ -1,6 +1,6 @@
 # 编辑台账与效果反馈
 
-用于连续生产、同事件跟进、纠错、发布恢复和后台明细复盘。先执行 SKILL 的版本/环境门；本参考不改变真实素材、封面、时长档、MiniMax、G0–G8 或发布授权要求。参数与观察窗口从 config `editorial_feedback` 读取，属于试运行配置，不是传播最优值。
+用于连续生产、同事件跟进、纠错、发布恢复和后台明细复盘。先执行 SKILL 的版本/环境门；本参考不改变真实素材、封面、音频模式、G0–G8 或发布授权要求。参数与观察窗口从 config `editorial_feedback` 读取，属于试运行配置，不是传播最优值。
 
 ## 1. 开工前做出编辑决定
 
@@ -35,7 +35,7 @@
 python <SkillRoot>/scripts/editorial_contract.py check --stage facts --package <work/editorial.json>
 ```
 
-事实通过后，在调用TTS之前补 `feasibility.video/cover={status,evidence}` 和 `media[]`。每条媒体有 path、sha256、role、claim_ids、source_id或source_url、captured_at、capture_time_status、time_basis、used_as_current_scene；role 为 direct_evidence/contextual_broll，capture_time_status 为 verified/unknown。
+事实通过后，在渲染之前（配音模式则在调用TTS之前）补 `feasibility.video/cover={status,evidence}` 和 `media[]`。每条媒体有 path、sha256、role、claim_ids、source_id或source_url、captured_at、capture_time_status、time_basis、used_as_current_scene；role 为 direct_evidence/contextual_broll/first_hand_quote，capture_time_status 为 verified/unknown。
 
 四类时间分别是事件发生、媒体拍摄、原始发布、最新实质进展。上传/转载时间不能代替拍摄时间。未知拍摄日期可保留用于背景，但不能宣称当前现场；used_as_current_scene=true 时必须是直接证据、拍摄时间已核且有 current_scene_basis 说明如何与事件时间匹配。旧背景画面与信息截图要明确用途，不能只靠“上传比事件晚”放行。
 
@@ -45,7 +45,7 @@ python <SkillRoot>/scripts/editorial_contract.py check --stage facts --package <
 python <SkillRoot>/scripts/editorial_contract.py check --stage feasible --package <work/editorial.json>
 ```
 
-这一步检查已取得的媒体哈希与探针记录，封面仍执行几何和四项实际看图门。探针失败不进入TTS/全片渲染。定稿后补 `presentation`：headline、subtitle、cover_headline、cover_subline、pages；每页包括 id/narration/white_lines/red_emphasis/claim_ids，与真实时间轴文字逐字对应。补 `review.copy_media_consistency=passed`，逐一对照事实、标题、口播、字幕、画面中的主体、数字单位、条件与因果边界。
+这一步检查已取得的媒体哈希与探针记录，封面仍执行几何和四项实际看图门。探针失败不进入渲染。定稿后补 `presentation`：headline_lines、result_line、cover_headline、cover_subline、caption_blocks；每块包括 id/lines/highlights（纯图文）/narration（仅配音）/claim_ids，与真实时间轴文字逐字对应。补 `review.copy_media_consistency=passed`，逐一对照事实、标题块、字幕、口播（如有）、画面中的主体、数字单位、条件与因果边界。
 
 ```text
 python <SkillRoot>/scripts/editorial_contract.py check --stage ready --package <work/editorial.json> --timeline <work/timeline.json> --video <work/final.mp4> --cover <work/封面.png> --report <work/editorial-report.json>

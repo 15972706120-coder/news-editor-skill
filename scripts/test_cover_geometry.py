@@ -21,10 +21,15 @@ ROOT = SCRIPT_DIR.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 import check_cover_geometry as checker  # noqa: E402
+from PIL import Image  # noqa: E402
 
 
-VALID_SOURCE = ROOT / "assets/references/locked-layout/reference-cover-frame.png"
-SMALL_COVER = ROOT / "assets/references/locked-layout/reference-cover-thumbnail-270x360.png"
+# Fixtures are generated so the regression does not depend on any news asset.
+FIXTURE_DIR = Path(tempfile.mkdtemp(prefix="news-editor-cover-fixture-"))
+VALID_SOURCE = FIXTURE_DIR / "frame.png"
+SMALL_COVER = FIXTURE_DIR / "thumbnail.png"
+Image.new("RGB", (1080, 1920), (12, 40, 90)).save(VALID_SOURCE)
+Image.new("RGB", (270, 360), (12, 40, 90)).save(SMALL_COVER)
 JPEG_REFERENCE = ROOT / "assets/references/cover-grid-good-bad-reference.jpg"
 
 

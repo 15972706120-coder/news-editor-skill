@@ -28,15 +28,16 @@ CURRENT_DOCS = [p for p in DOCS if p.name != "CHANGELOG.md"]
 BANNED_PATTERNS = [
     (re.compile(r"(outputs[/\\]|`outputs`|<项目根>/outputs)"), "FAIL", "输出区已迁移（根目录见 config.json），残留 outputs 引用"),
     (re.compile(r"edge[-_]tts|Edge TTS", re.IGNORECASE), "FAIL", "Edge TTS 已弃用；新制作环境不得包含（CHANGELOG 除外）"),
-    (re.compile(r"layout-lock-v1(\.json)?"), "WARN", "V1 锁定坐标仅历史参考，现行唯一坐标源是 layout-lock-v2.json"),
+    (re.compile(r"layout-lock-v[12](\.json)?"), "WARN", "V1/V2 锁定坐标仅历史参考，现行唯一坐标源是 layout-lock-v3.json"),
     (re.compile(r"1080[×x]464|1080[×x]1054|1080[×x]402"), "WARN", "V1 分板数字（464/1054/402）残留"),
     (re.compile(r"D:.每日新闻"), "FAIL", "输出根目录是 FACT，只允许存在于 config.json；文档请引用 config 的 output.root"),
     (re.compile(r"x=\d+,\s*y=\d+"), "WARN", "坐标复述：FACT 只允许存在于 config.json 与锁定 JSON；人读镜像仅限 locked-layout-validation.md"),
     (re.compile(r"Chinese \(Mandarin\)_"), "WARN", "音色 ID 复述：默认值只存在于 config.json；API 说明文档 minimax-tts.md 除外"),
+    (re.compile(r"render_locked_news|mix_news_audio|smoke_test_mixed_renderer"), "WARN", "脚本已由 render_news_brief.py / mix_timeline_audio.py / smoke_test_brief_pipeline.py 取代"),
 ]
 EXEMPT_FILES = {  # 相对 ROOT 的文件 → 豁免的 (模式序号) 集合
     "scripts/check_environment.ps1": {1},  # edge-tts 已降级为 legacy 非必需检查，保留兼容
-    "scripts/check_skill_consistency.py": {0, 2, 4, 5, 6},  # 检查器自身的模式定义字符串
+    "scripts/check_skill_consistency.py": {0, 2, 4, 5, 6, 7},  # 检查器自身的模式定义字符串
     "scripts/minimax_tts.py": {6},  # config 缺失时的内置兜底音色（防御性编程）
 }
 # FACT 复述的合法位置（模式序号 → 允许出现的文件集合，均为相对 ROOT 路径）
@@ -83,7 +84,8 @@ def check_config(issues: list) -> None:
     except ValueError as error:
         issues.append(("FAIL", "config.json", f"JSON 解析失败: {error}"))
         return
-    for section in ("skill_update", "orchestration", "output", "voice", "mix", "video", "layout", "cover"):
+    for section in ("skill_update", "orchestration", "editorial_feedback", "output", "platform_publish", "workspace",
+                    "topic_screening", "audio", "voice", "mix", "video", "layout", "cover", "bgm_library"):
         if section not in data:
             issues.append(("FAIL", "config.json", f"缺少必需段: {section}"))
     version_path = ROOT / "VERSION"
@@ -247,16 +249,60 @@ def check_config(issues: list) -> None:
 
     video = data.get("video", {})
     profiles = video.get("duration_profiles", {})
-    standard = profiles.get("standard_seconds")
-    compact = profiles.get("compact_seconds_range")
-    if not (type(standard) in (int, float) and math.isfinite(standard) and standard > 0):
-        issues.append(("FAIL", "config.json", "video.duration_profiles.standard_seconds 必须是有限正数"))
-    if not (isinstance(compact, list) and len(compact) == 2
-            and all(type(v) in (int, float) and math.isfinite(v) and v > 0 for v in compact)
-            and compact[0] < compact[1] < standard):
-        issues.append(("FAIL", "config.json", "紧凑档必须是小于标准档的有效递增时长范围"))
-    if profiles.get("compact_default_pages") != 1:
-        issues.append(("FAIL", "config.json", "紧凑档默认页数必须为 1"))
+    brief = profiles.get("brief_seconds_range")
+    hard_max = profiles.get("hard_max_seconds")
+    if not (isinstance(brief, list) and len(brief) == 2
+            and all(type(v) in (int, float) and math.isfinite(v) and v > 0 for v in brief) and brief[0] < brief[1]):
+        issues.append(("FAIL", "config.json", "video.duration_profiles.brief_seconds_range 必须是递增的正数范围"))
+    if not (type(hard_max) in (int, float) and math.isfinite(hard_max)
+            and isinstance(brief, list) and len(brief) == 2 and brief[1] <= hard_max):
+        issues.append(("FAIL", "config.json", "video.duration_profiles.hard_max_seconds 不得小于快讯档上限"))
+    timing = video.get("timing", {})
+    for key in ("first_caption_delay_seconds", "reading_base_seconds", "reading_per_unit_seconds", "min_block_seconds",
+                "first_voice_lead_seconds", "voice_gap_seconds", "tail_hold_seconds", "text_line_reveal_seconds",
+                "text_final_hold_seconds"):
+        value = timing.get(key)
+        if not (type(value) in (int, float) and math.isfinite(value) and value >= 0):
+            issues.append(("FAIL", "config.json", f"video.timing.{key} 必须是非负有限数"))
+    limits = video.get("copy_limits", {})
+    for key in ("headline_line_units", "result_line_units", "caption_line_units", "publish_title_units"):
+        value = limits.get(key)
+        if not (type(value) in (int, float) and math.isfinite(value) and value > 0):
+            issues.append(("FAIL", "config.json", f"video.copy_limits.{key} 必须是有限正数"))
+    blocks = limits.get("caption_blocks_range")
+    if not (isinstance(blocks, list) and len(blocks) == 2 and all(type(v) is int for v in blocks) and blocks[0] < blocks[1]):
+        issues.append(("FAIL", "config.json", "video.copy_limits.caption_blocks_range 必须是递增整数范围"))
+    footage = video.get("footage", {})
+    if not (type(footage.get("max_clips")) is int and footage["max_clips"] >= 1
+            and footage.get("transition") == "cut"):
+        issues.append(("FAIL", "config.json", "video.footage 必须定义镜头数上限并固定为硬切"))
+    overlays = video.get("overlays", {})
+    if not (type(overlays.get("max_count")) is int and overlays["max_count"] >= 0):
+        issues.append(("FAIL", "config.json", "video.overlays.max_count 必须是非负整数"))
+
+    audio = data.get("audio", {})
+    modes = audio.get("modes", {})
+    if audio.get("default_mode") not in modes or set(modes) != {"bgm_only", "original_bgm", "tts_bgm"}:
+        issues.append(("FAIL", "config.json", "audio.default_mode 必须是三种已定义音频模式之一"))
+    targets = data.get("mix", {}).get("loudness_targets", {})
+    for mode in ("bgm_only", "original_bgm", "tts_bgm"):
+        target = targets.get(mode, {})
+        window = target.get("integrated_lufs_range")
+        peak = target.get("max_true_peak_dbtp")
+        if not (isinstance(window, list) and len(window) == 2
+                and all(type(v) in (int, float) and math.isfinite(v) for v in window) and window[0] < window[1]
+                and type(peak) in (int, float) and math.isfinite(peak)):
+            issues.append(("FAIL", "config.json", f"mix.loudness_targets.{mode} 必须定义响度区间与真峰值上限"))
+    screening = data.get("topic_screening", {})
+    if set(screening.get("grades", {})) != {"S", "A", "B"}:
+        issues.append(("FAIL", "config.json", "topic_screening.grades 必须完整定义 S/A/B 三级"))
+    beats = screening.get("beat_priority", [])
+    labels = screening.get("beat_labels", {})
+    if not beats or len(set(beats)) != len(beats) or set(beats) != set(labels):
+        issues.append(("FAIL", "config.json", "topic_screening.beat_priority 必须唯一且与 beat_labels 一一对应"))
+    cover_policy = data.get("cover", {}).get("source_policy", {})
+    if cover_policy.get("allowed") != ["image", "video_frame"]:
+        issues.append(("FAIL", "config.json", "cover.source_policy.allowed 必须恰为 image 与 video_frame"))
     still = video.get("still_media", {})
     ratio = still.get("max_body_ratio")
     max_segments = still.get("max_segments")
@@ -332,10 +378,24 @@ def check_python_syntax(issues: list) -> None:
 
 def check_active_layout(issues: list) -> None:
     import json
-    v2 = ROOT / "assets/references/locked-layout/layout-lock-v2.json"
-    data = json.loads(v2.read_text(encoding="utf-8"))
-    if data.get("status") != "active":
-        issues.append(("FAIL", v2.relative_to(ROOT).as_posix(), "layout-lock-v2.json status 不是 active"))
+    active = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))["layout"]["active_lock_file"]
+    path = ROOT / active
+    if not path.is_file():
+        issues.append(("FAIL", "config.json", f"layout.active_lock_file 指向的文件不存在: {active}"))
+        return
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("status") != "active" or data.get("version") != "3.0":
+        issues.append(("FAIL", active, "活动锁定版式必须是 status=active 的 3.0 版"))
+    zones = data.get("body", {})
+    for key in ("headline_block", "result_line", "disclaimer", "footage", "caption", "source_safe_bbox"):
+        if key not in zones:
+            issues.append(("FAIL", active, f"缺少正文版式分区 body.{key}"))
+    for key in ("headline", "panel", "text", "caption", "background"):
+        if key not in data.get("brief_text", {}):
+            issues.append(("FAIL", active, f"缺少纯图文版式分区 brief_text.{key}"))
+    previous = ROOT / "assets/references/locked-layout" / str(data.get("supersedes"))
+    if not previous.is_file():
+        issues.append(("FAIL", active, "被取代的上一版锁定文件必须保留供回看旧成片"))
 
 
 def main() -> int:

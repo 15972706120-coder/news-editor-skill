@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract locked News-Editor layout evidence from a rendered MP4."""
+"""Extract locked News-Editor brief-layout evidence (cover, header, footage, caption zones) from an MP4."""
 
 from __future__ import annotations
 
@@ -11,7 +11,8 @@ import sys
 from fractions import Fraction
 from pathlib import Path
 from PIL import Image
-from production_contract import load_timeline, sha256, require
+from production_contract import (load_timeline, lock, config, sha256, require,
+                                 body_geometry, caption_arrival)
 from validate_news_video import extract_qa_frames
 
 
@@ -22,7 +23,6 @@ if hasattr(sys.stderr, "reconfigure"):
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_CONTRACT = SCRIPT_DIR.parent / "assets" / "references" / "locked-layout" / "layout-lock-v2.json"
 
 
 def locate(explicit: str | None, name: str) -> str:
@@ -41,196 +41,147 @@ def run(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=True, capture_output=True, text=True, encoding="utf-8", timeout=120)
 
 
-def parse_counts(value: str) -> list[int]:
-    counts = [int(item.strip()) for item in value.split(",") if item.strip()]
-    if not counts or any(item <= 0 for item in counts):
-        raise ValueError("--page-frame-counts must contain positive comma-separated integers")
-    return counts
-
-
 def probe(ffprobe: str, source: Path) -> dict[str, object]:
-    result = run(
-        [
-            ffprobe,
-            "-v",
-            "error",
-            "-count_frames",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            "stream=width,height,r_frame_rate,nb_read_frames",
-            "-of",
-            "json",
-            str(source),
-        ]
-    )
+    result = run([ffprobe, "-v", "error", "-count_frames", "-select_streams", "v:0",
+                  "-show_entries", "stream=width,height,r_frame_rate,nb_read_frames", "-of", "json", str(source)])
     payload = json.loads(result.stdout)
     if not payload.get("streams"):
         raise RuntimeError("no video stream found")
     stream = payload["streams"][0]
-    return {
-        "width": int(stream["width"]),
-        "height": int(stream["height"]),
-        "fps": float(Fraction(stream["r_frame_rate"])),
-        "frames": int(stream["nb_read_frames"]),
-    }
+    return {"width": int(stream["width"]), "height": int(stream["height"]),
+            "fps": float(Fraction(stream["r_frame_rate"])), "frames": int(stream["nb_read_frames"])}
 
 
-def extract_frame(ffmpeg: str, source: Path, frame: int, target: Path) -> None:
-    run(
-        [
-            ffmpeg,
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-i",
-            str(source),
-            "-vf",
-            f"select=eq(n\\,{frame})",
-            "-frames:v",
-            "1",
-            "-y",
-            str(target),
-        ]
-    )
-
-
-def crop_image(ffmpeg: str, source: Path, box: list[int], target: Path, scale: str | None = None) -> None:
+def crop_image(source: Path, box: list[int], target: Path, scale: str | None = None) -> None:
     x, y, width, height = box
     with Image.open(source) as image:
-        cropped = image.crop((x,y,x+width,y+height))
+        cropped = image.crop((x, y, x+width, y+height))
         if scale:
-            cropped = cropped.resize(tuple(map(int,scale.split(':'))),Image.Resampling.LANCZOS)
+            cropped = cropped.resize(tuple(map(int, scale.split(':'))), Image.Resampling.LANCZOS)
         cropped.save(target)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
-    parser.add_argument("--page-frame-counts", help="Legacy comma-separated body page frame counts")
-    parser.add_argument('--timeline', type=Path)
+    parser.add_argument('--timeline', type=Path, required=True)
     parser.add_argument('--qa-report', type=Path, help='Reuse exact-hash final video probe and extracted frames')
+    parser.add_argument('--render-report', type=Path, help='Caption slide frames and placements from the render')
     parser.add_argument("--cover-frames", type=int, default=1)
     parser.add_argument("--out-dir", required=True, type=Path)
-    parser.add_argument("--contract", type=Path, default=DEFAULT_CONTRACT)
+    parser.add_argument("--contract", type=Path)
     parser.add_argument("--ffmpeg")
     parser.add_argument("--ffprobe")
     args = parser.parse_args()
 
     if not args.source.is_file():
         raise FileNotFoundError(args.source)
-    if not args.contract.is_file():
-        raise FileNotFoundError(args.contract)
-
-    ffmpeg = locate(args.ffmpeg, "ffmpeg")
-    ffprobe = locate(args.ffprobe, "ffprobe")
-    if bool(args.timeline) == bool(args.page_frame_counts):
-        parser.error('Supply --timeline or legacy --page-frame-counts, not both')
-    timeline = load_timeline(args.timeline) if args.timeline else None
-    counts = ([p['end_frame']-p['start_frame'] for p in timeline['pages']] if timeline else parse_counts(args.page_frame_counts))
-    contract = json.loads(args.contract.read_text(encoding="utf-8"))
+    ffmpeg, ffprobe = locate(args.ffmpeg, "ffmpeg"), locate(args.ffprobe, "ffprobe")
+    plan = load_timeline(args.timeline)
+    lk = lock()
+    contract_path = args.contract or (SCRIPT_DIR.parent/config()['layout']['active_lock_file'])
+    zones = body_geometry(lk, plan)
+    text_mode = plan['format'] == 'brief_text'
+    band = 'panel' if text_mode else 'footage'
+    render = json.loads(args.render_report.read_text(encoding='utf-8')) if args.render_report else {}
+    units = render.get('caption_units') or [
+        {'id': block['id'], 'begin': caption_arrival(block, index, plan['fps'])-lk['body']['caption']['slide_frames'],
+         'arrival': caption_arrival(block, index, plan['fps']), 'exit': None}
+        for index, block in enumerate(plan['caption_blocks'])]
     verified = None
     if args.qa_report:
         verified = json.loads(args.qa_report.read_text(encoding='utf-8'))
         require(verified.get('sha256') == sha256(args.source), 'QA report refers to another video')
-        require(not timeline or verified.get('timeline_sha256') == sha256(args.timeline), 'QA timeline changed')
+        require(verified.get('timeline_sha256') == sha256(args.timeline), 'QA timeline changed')
         require(verified.get('passed') is True, 'Cannot reuse failed machine report as structural approval')
         media = dict(verified['video'], frames=verified['video']['decoded_frames'])
     else:
         media = probe(ffprobe, args.source)
-    expected = contract["canvas"]
-    expected_frames = args.cover_frames + sum(counts)
-
+    expected = lk["canvas"]
     structural_checks = {
         "width": media["width"] == expected["width"],
         "height": media["height"] == expected["height"],
-        "fps": abs(media["fps"] - expected["fps"]) < 0.001,
-        "frames_match_plan": media["frames"] == expected_frames,
+        "fps": abs(media["fps"]-expected["fps"]) < 0.001,
+        "frames_match_plan": media["frames"] == plan['total_frames'],
     }
     if not all(structural_checks.values()):
-        raise RuntimeError(
-            "structural layout proof failed: "
-            + json.dumps({"actual": media, "expected_frames": expected_frames, "checks": structural_checks}, ensure_ascii=False)
-        )
+        raise RuntimeError("structural layout proof failed: "+json.dumps(
+            {"actual": media, "expected_frames": plan['total_frames'], "checks": structural_checks}, ensure_ascii=False))
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    frames: dict[str, int] = {"cover": 0, "first_body": args.cover_frames, "final": media["frames"] - 1}
-    page_start = args.cover_frames
-    for index, count in enumerate(counts, start=1):
-        frames[f"page_{index:02d}_mid"] = page_start + count // 2
-        if index < len(counts):
-            frames[f"cut_{index:02d}_before"] = page_start + count - 1
-            frames[f"cut_{index:02d}_after"] = page_start + count
-        page_start += count
+    frames: dict[str, int] = {"cover": 0, "first_body": args.cover_frames, "final": media["frames"]-1}
+    for index, unit in enumerate(units, start=1):
+        frames[f"caption_{index:02d}_settled"] = min(int(unit["arrival"])+1, media["frames"]-1)
+    cuts = 0
+    for clip in plan.get('clips') or []:
+        if clip['start_frame'] > args.cover_frames:
+            cuts += 1
+            frames[f"cut_{cuts:02d}_before"] = clip['start_frame']-1
+            frames[f"cut_{cuts:02d}_after"] = clip['start_frame']
 
     full_frame_files: dict[str, str] = {}
-    needed = sorted(set(frames.values()))
     reusable = {}
     if verified:
-        for name in verified.get('extracted_frames',[]):
+        for name in verified.get('extracted_frames', []):
             candidate = Path(name)
-            if candidate.is_file() and verified.get('extracted_frame_sha256',{}).get(name)==sha256(candidate):
+            if candidate.is_file() and verified.get('extracted_frame_sha256', {}).get(name) == sha256(candidate):
                 reusable[int(candidate.stem.split('-')[-1])] = candidate
-    missing = [n for n in needed if n not in reusable]
+    missing = [n for n in sorted(set(frames.values())) if n not in reusable]
     if missing:
-        paths, failed = extract_qa_frames(ffmpeg,args.source,args.out_dir/'frames',missing,media['frames'],120)
-        require(not failed,'Cannot extract requested proof frames')
-        reusable.update({int(Path(p).stem.split('-')[-1]):Path(p) for p in paths})
+        paths, failed = extract_qa_frames(ffmpeg, args.source, args.out_dir/'frames', missing, media['frames'], 120)
+        require(not failed, 'Cannot extract requested proof frames')
+        reusable.update({int(Path(p).stem.split('-')[-1]): Path(p) for p in paths})
     for label, frame in frames.items():
-        target = args.out_dir / f"{label.replace('_', '-')}.png"
-        shutil.copyfile(reusable[frame],target)
+        target = args.out_dir/f"{label.replace('_', '-')}.png"
+        shutil.copyfile(reusable[frame], target)
         full_frame_files[label] = target.name
 
-    cover = args.out_dir / full_frame_files["cover"]
-    crop_image(ffmpeg, cover, contract["cover"]["background_video"], args.out_dir / "cover-3x4.png")
-    crop_image(
-        ffmpeg,
-        cover,
-        contract["cover"]["background_video"],
-        args.out_dir / "cover-thumbnail-270x360.png",
-        "270:360",
-    )
+    bx, by, bw, bh = lk["cover"]["background_video"]
+    cover = args.out_dir/full_frame_files["cover"]
+    crop_image(cover, [bx, by, bw, bh], args.out_dir/"cover-3x4.png")
+    crop_image(cover, [bx, by, bw, bh], args.out_dir/"cover-thumbnail-270x360.png", "270:360")
 
-    page_files: dict[str, dict[str, str]] = {}
-    for index in range(1, len(counts) + 1):
-        full = args.out_dir / full_frame_files[f"page_{index:02d}_mid"]
+    zone_files: dict[str, dict[str, str]] = {}
+    for index in range(1, len(units)+1):
+        full = args.out_dir/full_frame_files[f"caption_{index:02d}_settled"]
         files: dict[str, str] = {}
-        for zone in ("header", "footage", "copy_board"):
-            suffix = "body" if zone == "copy_board" else zone
-            target = args.out_dir / f"page-{index:02d}-{suffix}.png"
-            crop_image(ffmpeg, full, contract["body_page"][zone], target)
+        for zone in ("header", band, "caption"):
+            target = args.out_dir/f"caption-{index:02d}-{zone}.png"
+            crop_image(full, zones[zone], target)
             files[zone] = target.name
-        page_files[f"page_{index:02d}"] = files
+        zone_files[f"caption_{index:02d}"] = files
 
     report = {
         "source": str(args.source.resolve()),
         "source_sha256": sha256(args.source),
-        "timeline_sha256": sha256(args.timeline) if timeline else None,
-        "contract_sha256": sha256(args.contract),
-        "contract": str(args.contract.resolve()),
+        "timeline_sha256": sha256(args.timeline),
+        "lock_sha256": sha256(contract_path),
+        "contract": str(contract_path.resolve()),
+        "format": plan['format'],
         "probe": media,
-        "page_frame_counts": counts,
+        "zones": zones,
         "cover_frames": args.cover_frames,
-        "cover_evidence_usage": "Encoded MP4 frame and derived crops/thumbnails are QA evidence only; never use as the independent upload cover or source background. Use the lossless master.",
+        "cover_evidence_usage": "Encoded MP4 frame and derived crops/thumbnails are QA evidence only; never use them as the independent upload cover or source background. Use the lossless master.",
         "structural_checks": structural_checks,
         "frames": frames,
         "full_frame_files": full_frame_files,
-        "page_zone_files": page_files,
+        "caption_zone_files": zone_files,
         "manual_review_required": [
             "cover_full_and_3x4",
             "cover_thumbnail_270x360",
-            "each_page_header_against_reference_header",
-            "each_page_footage_fill_and_source_text",
-            "each_page_body_white_red_hierarchy",
+            "each_caption_header_against_reference",
+            "each_caption_footage_or_panel_fill_and_source_text",
+            "each_caption_text_legibility_and_width",
             "each_cut_before_after",
+            "caption_slide_in_frames",
             "final_frame",
             "platform_overlay",
         ],
         "status": "NEEDS_VISUAL_REVIEW",
     }
-    report_path = args.out_dir / "layout-proof.json"
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"report": str(report_path), "frames": frames, "checks": structural_checks}, ensure_ascii=False, indent=2))
+    report_path = args.out_dir/"layout-proof.json"
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
+    print(json.dumps({"report": str(report_path), "frames": len(frames), "checks": structural_checks}, ensure_ascii=False))
     return 0
 
 

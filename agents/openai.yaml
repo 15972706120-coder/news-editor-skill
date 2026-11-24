@@ -1,8 +1,8 @@
 interface:
   display_name: "News-Editor"
-  short_description: "核验热点与素材时间，去重制作真实新闻视频，验收后发布生活号并复盘逐条表现"
+  short_description: "按账号实测的题材优先级筛选热点，制作 BGM＋字幕的资讯快讯，验收后发布生活号并复盘"
   brand_color: "#00DCE6"
-  default_prompt: "使用 $news-editor 按受众关联与新增事实筛选热点，核验来源和素材时间，小批制作真实新闻视频，验收及明确授权后发布到生活号，并按统一观察窗口复盘。"
+  default_prompt: "使用 $news-editor 按红线和 S/A/B 分级筛选今天的民生热点，核验来源和时间，用标题块＋实拍带＋滑入字幕的快讯版式小批制作 BGM 加字幕的竖屏视频，验收及明确授权后发布到手机通讯生活，并按统一观察窗口复盘。"
 
 policy:
   allow_implicit_invocation: true

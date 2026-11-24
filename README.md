@@ -2,67 +2,60 @@
 
 # News-Editor
 
-### 从热点核验、制作到生活号发布与效果复盘的新闻短视频 Skill
+### 为支付宝「手机通讯生活号」制作资讯快讯短视频的 Skill
 
-发现新闻、核验事实、检索真实素材、制作高清封面、完成剪辑与声音，并以逐帧质量门交付 9:16 新闻视频。
+按账号实测的题材优先级筛选热点、核验事实、下载可追溯素材，套用锁定的“标题块＋实拍带＋滑入字幕”版式，以 BGM＋字幕产出 9–15 秒竖屏成片，验收后发布。
 
-[![Version](https://img.shields.io/badge/version-1.15.0-00DCE6?style=flat-square)](VERSION)
+[![Version](https://img.shields.io/badge/version-2.0.0-00DCE6?style=flat-square)](VERSION)
 ![Status](https://img.shields.io/badge/status-active-2EA44F?style=flat-square)
 ![Canvas](https://img.shields.io/badge/canvas-1080%C3%971920-FFD400?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?style=flat-square)
 
-[快速开始](#快速开始) · [功能](#核心功能) · [架构](#工作架构) · [演示](#成片演示) · [质量标准](#质量标准) · [文档](#文档导航)
+[快速开始](#快速开始) · [功能](#核心功能) · [架构](#工作架构) · [对标成片](#对标成片) · [质量标准](#质量标准) · [文档](#文档导航)
 
 </div>
 
 ## 简介
 
-News-Editor 是一个面向 Codex 与兼容 Agent 平台的新闻视频生产 Skill。它将容易失控的“搜热点—找素材—写文案—配音—剪辑—验收”流程，收敛为一套有来源、有时间轴、有预览证据、可以继续修改的制作系统。
+News-Editor 是一个面向 Codex 与兼容 Agent 平台的新闻短视频生产 Skill。它把“搜热点—找素材—写文案—剪辑—验收”收敛为一套有来源、有时间轴、有预览证据、可以继续修改的制作系统。
 
-它不是简单套模板，也不是让 Agent 生成几张新闻风图片。News-Editor 以真实、可追溯的新闻素材为主体，使用固定版式与确定性脚本完成渲染，并要求机器检查和人工视觉/听觉复核同时通过后才允许发布。
+2.0 版依据账号四条高播放成片逐帧实测重做：这类成片的共同点是 **9–13 秒、BGM 加字幕而不配音、顶部 2–3 行混排标题块、中段真实素材、黄色黑边字幕跟阅读节奏逐块滑入**。News-Editor 用确定性脚本复现这套版式，并要求机器检查和人工视觉/听觉复核同时通过后才允许发布。
 
-![News-Editor 新闻短视频工作流](assets/showcase/workflow-overview.png)
+它不生成新闻画面：成片主体始终是真实、可追溯的素材；资料画面必须带免责小字，当事方原话可以保留源字幕与原声。
+
+![对标成片参考接触表](assets/references/v3-reference/reference-contact-sheet.png)
 
 适合：
 
-- 今日热点、民生、消费、科技和产业新闻短视频；
+- 人物故事、社会民生、手机数码风险、消费维权、放假办理等资讯快讯；
+- 没有素材但信息成立的政策更新、时间表、清单（纯图文形态）；
 - 已有视频、文案或参考样式的二次剪辑；
-- 多主题批量生产与子智能体协作；
-- 封面、分页、配音、BGM、字幕清理或版式的定向修改；
-- 对既有成片进行逐帧、声音、素材来源和平台遮挡质检；
-- 用户验收并明确授权后的支付宝生活号发布，以及后台逐条表现复盘。
+- 多主题批量生产与子智能体协作。
 
 ## 核心功能
 
-| 模块 | 能力 | 关键约束 |
-|---|---|---|
-| 热点发现 | 从商业媒体、地方媒体、行业媒体、热搜榜及原始发布渠道发现候选 | 排除国家级媒体作为选题来源，热点榜只作线索 |
-| 事实核验 | 建立事实包，区分已证实事实、推断和宣传表达 | 核心事实至少双来源交叉核验，优先纳入原始公告 |
-| 视频检索 | 以原始信息标题精准检索抖音及其他可追溯视频 | 记录页面链接、账号、标题、时间码、哈希和使用依据 |
-| 素材剪辑 | 自动体检分辨率、帧率、字幕区、黑边、主播、人脸与可用片段 | 真实视频为主体；清除旧文字并保持画面满幅、稳定、连续 |
-| 高清封面 | 单独检索高清图片，生成无标题缩略图和候选接触表 | 禁止视频抽帧；同时通过清晰度、主体、相关性和冲击力四项门 |
-| 文案与分页 | 形成短封面标题、白色说明、红色重点和逐页口播 | 一页一个信息任务，由配音与阅读共同决定页长，不机械均分 |
-| 声音系统 | MiniMax 中文配音、BGM 混音、响度与真峰值检查 | 下载素材原声默认静音；逐页校验人声完整度和混音差值 |
-| 固定版式 | 深海蓝三段式正文、9:16 封面、平台安全区和确定性坐标 | 唯一坐标源、固定字号、平台叠层预览，不自动缩字救溢出 |
-| 自动验收 | 检查帧数、时长、音频、命名、素材身份、切点、封面与遮挡 | 机器代理指标不能替代实际看图、看视频和听音频 |
-| 多 Agent 协作 | 根 Agent 集中制作，素材与封面按需并发，独立 QA | 固定版本与唯一写入者；实际派发的交接包带哈希，QA 只读 |
-| 编辑台账 | 跨日事件占位、事实增量检查、阻塞恢复与工件身份 | 无增量改标题重做被拦；必要纠错与实质进展不受硬冷却拦截 |
-| 生活号发布 | 日常 Chrome 冷启动、账号切换、封面/声明核验、单条及批量发布 | 用户验收与明确授权在先，逐条就绪；成功以平台记录核验 |
-| 效果反馈 | 原始CSV复算、作品映射、留存/互动/关注与观察年龄 | 人均时长不当总片长；不同窗口、分母和周看板分别列示 |
+- **选题分级**：先过红线（无信源、改写度不足、时间错位不发），再按 S/A/B 分级，同级按账号实测的题材优先级排序。
+- **事实核验**：双来源交叉核验、四类时间留证、跨日台账占位，同事件无新增事实不重做。
+- **素材链路**：抖音原始标题精准检索与下载恢复手册；片段分为事件现场、资料画面、当事方原话三种角色。
+- **锁定版式**：标题块、实拍带、字幕块与纯图文版的坐标、字号、颜色、倾斜和滑入帧数全部写入锁定 JSON，渲染器按真实字形宽度自适应字号。
+- **三种音频模式**：默认 BGM＋字幕；当事方原声＋BGM；用户要求时的 MiniMax 配音＋BGM。
+- **封面**：沿用青色大字＋白色副标题＋四角框样式，独立高清图片优先，也可用原片清晰关键帧，统一过四项人工门与几何门。
+- **逐帧验收**：最终 MP4 的帧数、时长、响度、真峰值机器实测；分板脚本拆出封面、标题区、实拍区、字幕区供人工逐张检查。
+- **平台发布与复盘**：验收后按明确指令发布到支付宝内容创作平台，并按统一观察窗口复盘后台数据。
 
 ## 工作架构
 
 ```mermaid
 flowchart LR
-    A[热点发现] --> B[事实包与原始标题]
-    B --> C1[视频素材检索]
-    B --> C2[封面图片检索]
-    B --> C3[文案与节奏]
+    A[热点发现与分级] --> B[事实包与原始标题]
+    B --> C1[素材检索与角色登记]
+    B --> C2[封面来源]
+    B --> C3[标题块与字幕块]
     C1 --> D[唯一时间轴]
     C2 --> D
     C3 --> D
-    D --> E1[固定版式渲染]
-    D --> E2[MiniMax 配音与 BGM]
+    D --> E1[锁定版式渲染]
+    D --> E2[BGM / 原声 / 配音]
     E1 --> F[FFmpeg 合成]
     E2 --> F
     F --> G[G0-G8 质量门]
@@ -77,13 +70,13 @@ News-Editor 将事实、素材、时间轴、声音和验收证据分开保存�
 ```text
 News-Editor
 ├─ SKILL.md                 # 入口、路由和不可违背的生产约束
-├─ config.json              # 版本、画布、声音、版式与封面的唯一机器事实源
-├─ references/              # 按任务加载的选题、剪辑、封面、配音和验收规范
-├─ scripts/                 # 版本门、时间轴、渲染、混音、合成和质量检查
+├─ config.json              # 版本、画布、声音、节奏、选题分级、版式与封面的唯一机器事实源
+├─ references/              # 按任务加载的选题、剪辑、封面、声音和验收规范
+├─ scripts/                 # 版本门、时间轴契约、渲染、混音、合成、校验、分板与冒烟测试
 ├─ assets/
 │  ├─ audio/                # 内置新闻 BGM
-│  ├─ references/           # 固定版式、平台遮挡与合格成片参考
-│  └─ showcase/             # README 使用的真实成片与多主题截图
+│  ├─ references/           # 锁定版式、封面资产、平台遮挡与对标成片参考
+│  └─ legacy-v2/            # 旧版分页成片资产，仅供回看
 ├─ agents/openai.yaml       # Skill 展示名称与调用提示
 └─ hooks/pre-commit         # 发布前一致性与回归门禁
 ```
@@ -91,111 +84,48 @@ News-Editor
 ### 单主题与批量模式
 
 - 单主题任务由一个 Agent 按节点完成，适合定向修改和小批量制作。
-- 多主题先按事件与事实占位，以config在制上限小批滚动；每条开工前刷新候选，N条是上限而非凑数目标。
-- 根 Agent 集中完成文案、时间轴、声音与渲染，素材/封面确有独立工作时才派侦察；时间轴单一写入，最终由独立QA只读验收。
+- 多主题先按事件与事实占位，以 config 在制上限小批滚动；每条开工前刷新候选，N 条是上限而非凑数目标。
+- 根 Agent 集中完成文案、时间轴、声音与渲染，素材/封面确有独立工作时才派侦察；时间轴单一写入，最终由独立 QA 只读验收。
 - 子智能体只回传结构化交接包和关键决定，长日志、截图和媒体证据留在工作区，减少上下文占用。
 
-## 成片演示
+## 对标成片
 
-### 完整视频
+版式来自账号自己已发布的四条高播放成片，原件与关键帧收录在 `assets/references/v3-reference/`：
 
-以下三条均为 1080×1920、30fps 的完整 9:16 成片。点击封面即可打开对应视频：
+| 样片 | 题型 | 成片形态 | 音频 |
+|---|---|---|---|
+| 12306 更新 | 民生政策时间表 | 纯图文：蓝色背景＋面板＋逐行正文 | BGM |
+| 未婚情侣同居生子分手索款 | 情感纠纷＋判决 | 三行标题块＋红字结果行＋资料画面＋免责小字 | BGM |
+| 非洲婚礼父亲送比亚迪当嫁妆 | 国际暖闻＋国产品牌 | 两行标题块＋现场素材＋评论截图浮层 | BGM |
+| 花坛藏尸案一审宣判 | 社会案件 | 白字首行＋黄底行标题块，保留源字幕 | 当事方原声＋BGM |
 
-<table>
-  <tr>
-    <td width="33%" align="center">
-      <a href="assets/showcase/season-change.mp4"><img src="assets/showcase/season-change-cover.png" alt="一夜换季视频封面" width="250"></a><br>
-      <strong>▶ 一夜换季</strong><br>天气 · 14 秒
-    </td>
-    <td width="33%" align="center">
-      <a href="assets/showcase/food-streaming.mp4"><img src="assets/showcase/food-streaming-cover.png" alt="叫停畸形吃播视频封面" width="250"></a><br>
-      <strong>▶ 叫停畸形吃播</strong><br>社会治理 · 14 秒
-    </td>
-    <td width="33%" align="center">
-      <a href="assets/showcase/best-rest.mp4"><img src="assets/showcase/best-rest-cover.png" alt="最好的休息视频封面" width="250"></a><br>
-      <strong>▶ 最好的休息</strong><br>生活方式 · 14 秒
-    </td>
-  </tr>
-</table>
-
-> 演示文件用于展示剪辑、分页、文字层级和镜头切换。新闻生产时仍须使用当次检索、核验并登记的素材。
-
-### 多主题正文画面
-
-每张图都从上述成片的不同时间点独立截取，用于同时观察素材选择、三段式布局、分页和红白文字层级，不再使用同一帧重复拼接的接触表。
-
-<table>
-  <tr>
-    <td width="33%" align="center">
-      <img src="assets/showcase/season-change-page1.jpg" alt="一夜换季第一页" width="250"><br>
-      <strong>一夜换季 · 01</strong><br>天气实景与首层事实
-    </td>
-    <td width="33%" align="center">
-      <img src="assets/showcase/food-streaming-page1.jpg" alt="叫停畸形吃播第一页" width="250"><br>
-      <strong>叫停畸形吃播 · 01</strong><br>事件主体与人物动作
-    </td>
-    <td width="33%" align="center">
-      <img src="assets/showcase/best-rest-page1.jpg" alt="最好的休息第一页" width="250"><br>
-      <strong>最好的休息 · 01</strong><br>反常识切入与场景证据
-    </td>
-  </tr>
-  <tr>
-    <td width="33%" align="center">
-      <img src="assets/showcase/season-change-page2.jpg" alt="一夜换季第二页" width="250"><br>
-      <strong>一夜换季 · 02</strong><br>风险提示与场景切换
-    </td>
-    <td width="33%" align="center">
-      <img src="assets/showcase/food-streaming-page2.jpg" alt="叫停畸形吃播第二页" width="250"><br>
-      <strong>叫停畸形吃播 · 02</strong><br>补充案例与结论重点
-    </td>
-    <td width="33%" align="center">
-      <img src="assets/showcase/best-rest-page2.jpg" alt="最好的休息第二页" width="250"><br>
-      <strong>最好的休息 · 02</strong><br>相关场景发散与行动建议
-    </td>
-  </tr>
-</table>
-
-### 封面缩略图门
-
-<p align="center">
-  <img src="assets/references/locked-layout/reference-cover-thumbnail-270x360.png" alt="270×360 封面缩略图示例" width="270">
-</p>
-
-正式封面不是“全尺寸看起来还行”就算通过。它需要在无标题 270×360 预览中仍能看清具体主体、动作或场景，并同时满足：
-
-1. 技术清晰；
-2. 主体可辨；
-3. 与新闻高度相关；
-4. 有真实而不误导的视觉冲击。
-
-任何单项失败都会换图，不允许用锐利标题、过饱和或总分补偿模糊和弱相关底图。
+渲染器用这四条样片自己的素材与文案各复刻了一遍，逐帧对比确认版式、字幕滑入和切点行为一致；`scripts/smoke_test_brief_pipeline.py` 会用其中的样片重跑这条链路。
 
 ## 标准制作流程
 
 1. **版本锁定**：每个新请求先实时核对 GitHub `main`，更新后重新加载 Skill。
-2. **选题与事实**：按受众与新增事实筛选，核事件/素材/发布/进展时间，双来源核验并在跨日台账占位。
-3. **素材获取**：先探针确认真实视频与独立封面可行性，再进入配音与渲染；失败保留可靠工件并切换合格题。
-4. **素材体检**：生成接触表与目标裁切预览，登记可用时间码、字幕区、主体和误导风险。
-5. **文案与时间轴**：按信息任务拆页，使用实测配音与阅读时间确定页长，镜头切换与页面切换分别规划。
-6. **渲染与混音**：固定版式渲染，MiniMax 分页配音，BGM 混音，再统一合成。
-7. **逐帧 QA**：检查封面、第 1 帧、每页中点、切点前后、末帧、音频和平台叠层。
-8. **稳定交付**：编辑记录绑定当前文件且G0–G8全部通过才标记FINAL_READY，输出区只保留最终视频和封面。
-9. **平台发布**：用户验收及明确授权后核账号、就绪、封面与按名称选择作者声明，成功记录平台作品ID和真实发布时间；未知结果先盘点。
-10. **效果复盘**：按真实发布与观察时刻关联后台记录，采集统一窗口，比较中位浏览、留存、收藏分享和关注。
+2. **选题与事实**：红线→分级→题材排序；核事件/素材/发布/进展时间，双来源核验并在跨日台账占位。
+3. **素材获取**：以原始标题精准检索，登记片段角色；封面来源（独立图片优先，其次原片清晰关键帧）同步探针。
+4. **素材体检**：生成接触表与实拍带目标裁切预览，登记可用时间码、字幕区、主体和误导风险。
+5. **文案与时间轴**：标题块、结果行、3–4 个字幕块；按阅读下限（配音时按实测音长）排块，镜头硬切。
+6. **渲染与混音**：锁定版式渲染；BGM、原声或配音按模式混音，再统一合成。
+7. **逐帧 QA**：检查封面、第 1 帧、每个字幕块到达帧与滑入帧、切点前后、末帧、声音和平台叠层。
+8. **稳定交付**：编辑记录绑定当前文件且 G0–G8 全部通过才标记 FINAL_READY，输出区只保留最终视频和封面。
+9. **平台发布**：用户验收及明确授权后核账号、就绪、封面与作者声明，成功记录平台作品 ID 和真实发布时间。
+10. **效果复盘**：按真实发布与观察时刻关联后台记录，比较中位浏览、留存、收藏分享和关注。
 
 ## 质量标准
 
 | 检查对象 | 必须通过 |
 |---|---|
-| 事实 | 核心事实双来源；数字、条件、时间与主体一致；推断不冒充事实 |
-| 视频素材 | 来源可追溯；主播和 AI 主播为零；人脸近景受限；素材与对应文案一致 |
-| 画面 | 1080×1920、30fps；等比满幅；没有大块黑边、跳帧、旧标题或动态字幕回流 |
-| 封面 | 独立高清图片；无字幕、水印、马赛克和模糊；四项人工编辑门全部通过 |
-| 正文 | 深海蓝三段式；每页 1–2 行白色说明和 1 行红色重点；平台 UI 不遮挡关键信息 |
-| 节奏 | 不机械按页均分；句意完整后换页；素材不足时使用紧凑档而不是重复或慢放凑时长 |
-| 配音 | MiniMax 分页生成；文本、参数、页号和 WAV 哈希可追溯；尾音不被切断 |
-| 混音 | BGM 不抢人声；最终响度、真峰值、采样率和声道以编码后的 MP4 实测 |
-| 交付 | 视频文件名与完整封面标题（主标题，副标题）一致；新闻来源只出现在每页右下角小字；发布目录没有草稿、脚本、测试素材和历史版本 |
+| 事实 | 核心事实双来源；数字、条件、时间与主体一致；推断不冒充事实；时间没有错位 |
+| 视频素材 | 来源可追溯；主播和 AI 主播为零；人脸近景受限；资料画面带免责小字 |
+| 画面 | 1080×1920、30fps；实拍带等比满幅，其余为素材模糊副本；无大块黑边、跳帧或未许可的源文字 |
+| 封面 | 独立高清图片或原片清晰关键帧；无字幕、水印、马赛克和模糊；四项人工编辑门全部通过 |
+| 正文 | 标题块 2–3 行且末行黄色斜体；字幕块不超过 4 行与锁定宽度；平台 UI 不遮挡到不可读 |
+| 节奏 | 每个字幕块不低于阅读下限；总时长 9–13 秒，不重复或慢放凑时长 |
+| 声音 | 音频模式与时间轴一致；最终响度、真峰值、采样率和声道以编码后的 MP4 实测 |
+| 交付 | 视频文件名与完整封面标题（主标题，副标题）一致；新闻来源只出现在右下角小字；发布目录没有草稿、脚本和历史版本 |
 
 机器检查用于验证几何、帧数、时长、响度和文件契约；封面审美、素材身份、字幕残留、切点观感、内容匹配和发音仍必须实际观看或试听。
 
@@ -223,13 +153,14 @@ git clone https://github.com/15972706120-coder/news-editor-skill.git $skillRoot
 
 ### 2. 首次环境检查
 
-预检前先执行下方第4节版本门，最终取得LATEST_READY后再运行；更新后必须重新加载并复核。
+预检前先执行下方第 4 节版本门，最终取得 LATEST_READY 后再运行；更新后必须重新加载并复核。
 
 ```powershell
 pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
+python (Join-Path $skillRoot 'scripts\smoke_test_brief_pipeline.py') --font (Join-Path $env:WINDIR 'Fonts\msyhbd.ttc')
 ```
 
-Windows完整制作与平台发布需要PowerShell 7、Python/Pillow、浏览器检索能力、agent-browser、yt-dlp、FFmpeg/FFprobe、Node.js、微软雅黑，以及 MiniMax API 环境变量。选择Remotion实现时才需要完整工程依赖；平台发布必须使用用户日常Chrome及桌面控制，核对目标生活号。新增台账、编辑记录和CSV复盘工具只依赖Python标准库，可跨平台执行；这不代表Windows发布管线已经在macOS验证。不要把 API Key、Cookie 或浏览器登录信息提交到 GitHub 或发送到聊天中。
+Windows 完整制作与平台发布需要 PowerShell 7、Python/Pillow、浏览器检索能力、agent-browser、yt-dlp、FFmpeg/FFprobe 和微软雅黑；平台发布必须使用用户日常 Chrome 及桌面控制，核对目标生活号。默认成片是 BGM 加字幕，不需要 MiniMax；只有用户要求配音时才配置 MiniMax API 环境变量。新增台账、编辑记录和 CSV 复盘工具只依赖 Python 标准库，可跨平台执行。不要把 API Key、Cookie 或浏览器登录信息提交到 GitHub 或发送到聊天中。
 
 ### 3. 调用
 
@@ -240,11 +171,11 @@ Windows完整制作与平台发布需要PowerShell 7、Python/Pillow、浏览器
 也可以直接描述任务：
 
 ```text
-使用 $news-editor 搜索今天的民生热点，先给我 5 个候选主题和核验链接。
+使用 $news-editor 搜索今天的民生热点，先给我候选主题、分级和核验链接。
 
-使用 $news-editor 将这条新闻制作成 9:16 视频，素材不足时使用 7–9 秒紧凑档。
+使用 $news-editor 将这条新闻制作成 9:16 资讯快讯，默认 BGM 加字幕。
 
-使用 $news-editor 只修改现有视频封面，保持正文、声音和时长不变。
+使用 $news-editor 只修改现有视频的标题块，保持素材、声音和时长不变。
 
 使用 $news-editor 质检这条视频，不要修改文件，只列出阻止发布的问题和证据。
 
@@ -273,8 +204,8 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\ensure_latest_skill.ps1') -
 - 输出根目录只包含按北京时间命名的日期目录。
 - 日期目录下一层是从 `1.` 开始连续编号的中文新闻目录。
 - 每个新闻目录默认只保存与完整封面标题同名的最终 MP4（封面主标题 + 全角逗号 + 封面副标题）和 `封面.png`。
-- 原片、工程、配音、预览、QA、日志和历史版本保存在项目工作区，不污染发布目录。
-- Cookie、浏览器profile、临时签名地址、后台原始导出、用户授权记录和生产台账不得进入Git。
+- 原片、工程、声音、预览、QA、日志和历史版本保存在项目工作区，不污染发布目录。
+- Cookie、浏览器 profile、临时签名地址、后台原始导出、用户授权记录和生产台账不得进入 Git。
 
 具体命名与路径以 [config.json](config.json) 为唯一机器事实源，详见 [交付契约](references/delivery-contract.md)。
 
@@ -283,16 +214,17 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\ensure_latest_skill.ps1') -
 | 文档 | 何时读取 |
 |---|---|
 | [SKILL.md](SKILL.md) | 所有任务的入口、路由和核心约束 |
-| [当前制作配置](references/current-production-profile-v2.md) | 开始制作或修订旧项目时 |
-| [热点发现](references/topic-discovery.md) | 用户没有提供明确主题时 |
-| [完整编辑 SOP](references/editorial-sop.md) | 完整制作或跨多个节点的任务 |
+| [当前制作配置](references/current-production-profile-v3.md) | 开始制作或修订旧项目时；了解 2.0 为什么这样改 |
+| [选题发现与筛选](references/topic-discovery.md) | 用户没有提供明确主题时 |
+| [节点式 SOP](references/editorial-sop.md) | 完整制作或跨多个节点的任务 |
 | [编辑台账与效果反馈](references/editorial-feedback-loop.md) | 连续生产、同题增量、纠错、发布恢复与后台复盘 |
 | [支付宝发布管线](references/alipay-publish-pipeline.md) | 已验收且有明确授权的单条或批量平台发布 |
 | [抖音素材链路](references/douyin-news-footage-pipeline.md) | 抖音检索、下载或恢复失败节点时 |
-| [可执行制作链路](references/executable-production.md) | 时间轴、渲染、配音、混音和合成 |
-| [封面与平台布局](references/cover-platform-layout-v2.md) | 制作封面、正文或平台预览时 |
-| [锁定版式验证](references/locked-layout-validation.md) | 所有封面与正文排版任务 |
-| [MiniMax 配音](references/minimax-tts.md) | 首次调用或排查配音问题时 |
+| [视觉、字幕节奏与声音模板](references/visual-audio-template.md) | 写文案、排字幕块、选音频模式或验收画面时 |
+| [可执行制作链路](references/executable-production.md) | 时间轴字段、渲染、混音、合成与校验命令 |
+| [封面与平台安全布局](references/cover-platform-layout-v3.md) | 制作封面、检查平台遮挡时 |
+| [锁定版式与分区验收](references/locked-layout-validation.md) | 所有封面与正文排版任务 |
+| [MiniMax 配音](references/minimax-tts.md) | 用户要求配音时首次调用或排查问题 |
 | [子智能体编排](references/subagent-orchestration.md) | 多主题、批量生产或节省上下文时 |
 | [交付质量门](references/delivery-gates.md) | 草稿复核与最终交付时 |
 | [质量标准](references/quality-standards.md) | 准备对外发布成片时 |
@@ -317,9 +249,10 @@ python -X utf8 (Join-Path $skillRoot 'scripts\test_orchestration_contract.py')
 python -X utf8 (Join-Path $skillRoot 'scripts\test_editorial_contract.py')
 python -X utf8 (Join-Path $skillRoot 'scripts\test_editorial_ledger.py')
 python -X utf8 (Join-Path $skillRoot 'scripts\test_performance_review.py')
+python -X utf8 (Join-Path $skillRoot 'scripts\smoke_test_brief_pipeline.py') --font (Join-Path $env:WINDIR 'Fonts\msyhbd.ttc')
 ```
 
-`hooks/pre-commit` 会检查版本与配置一致性、失效链接、资产、Python 语法、封面几何、时间轴/声音/混合媒体契约以及子智能体交接哈希、编辑记录身份、台账占位/授权/恢复与后台数据口径。可用NEWS_EDITOR_PYTHON为提交门指定实际Python可执行文件。需要验证真实编码链时运行 `scripts/smoke_test_mixed_renderer.py`；它只生成内部诊断样片，不是新闻产物。
+`hooks/pre-commit` 会检查版本与配置一致性、失效链接、资产、Python 语法、封面几何、时间轴/声音/媒体契约以及子智能体交接哈希、编辑记录身份、台账占位/授权/恢复与后台数据口径。可用 NEWS_EDITOR_PYTHON 为提交门指定实际 Python 可执行文件。`smoke_test_brief_pipeline.py` 验证真实编码链，只生成内部诊断样片，不是新闻产物。
 
 ## 设计边界
 
@@ -327,19 +260,9 @@ News-Editor 明确不做以下事情：
 
 - 不使用 AI 自生成图片或视频冒充新闻主体和现场；
 - 不把主播、AI 主播或对镜口播作为正文核心画面；
-- 不使用视频帧、播放器截图或成片反抽帧制作封面；
+- 不用播放器截图、平台缩略图或成片反抽帧制作封面；
+- 不把资料画面、评论截图或未经核验的网络说法当作事实；
 - 不用无关库存画面、重复镜头、慢放或冻结画面凑时长；
-- 不把搜索摘要、评论或未经核验的网络说法当作事实；
 - 不把机器分数、代码参数或渲染成功等同于视觉、听觉和平台审核通过。
 
 素材版权与平台授权仍由实际使用者确认。Skill 会保存来源和使用依据，但不会替代版权许可或平台最终审核。
-
----
-
-<div align="center">
-
-**News-Editor · 真实素材 · 确定时间轴 · 可复核交付**
-
-[查看版本记录](CHANGELOG.md) · [查看完整规范](SKILL.md)
-
-</div>

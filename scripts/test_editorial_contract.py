@@ -1,4 +1,5 @@
 import copy
+import os
 import json
 import tempfile
 import unittest
@@ -21,10 +22,10 @@ class EditorialContractTests(unittest.TestCase):
             review=dict(reviewer='测试审查记录',reviewed_at='2026-10-08T09:30:00+08:00',evidence='测试记录，不是新闻事实核验',
                 **{k:'passed' for k in ['source_eligibility','source_independence','dates','subject_numbers_conditions','copy_media_consistency','semantic_increment']}),
             feasibility={k:dict(status='passed',evidence='测试记录') for k in ['video','cover']},
-            presentation=dict(headline='座位安排',subtitle='范围说明',cover_headline='亲子座位',cover_subline='暂无法保障',pages=[dict(id='page1',narration='暂无法保障亲子相邻。',white_lines=['暂无法保障'],red_emphasis='亲子相邻',claim_ids=['c1'])]),
+            presentation=dict(headline_lines=[dict(text='座位安排',style='yellow_tag'),dict(text='范围说明',style='yellow_italic')],result_line=None,cover_headline='亲子座位',cover_subline='暂无法保障',caption_blocks=[dict(id='b1',lines=['暂无法保障亲子相邻'],claim_ids=['c1'])]),
             media=[dict(path='source.mp4',sha256=digest(self.source),role='direct_evidence',capture_time_status='verified',captured_at='2026-10-08',time_basis='记录当事方拍摄说明',used_as_current_scene=True,current_scene_basis='本事件本日拍摄',claim_ids=['c1'],source_id='s1'),
                 dict(path='cover.png',sha256=digest(self.cover),role='contextual_broll',capture_time_status='unknown',captured_at=None,time_basis='背景示意图，不宣称现场',used_as_current_scene=False,claim_ids=['c1'],source_id='s2')])
-        self.t=dict(headline='座位安排',subtitle='范围说明',pages=[dict(id='page1',narration='暂无法保障亲子相邻。',white_lines=['暂无法保障'],red_emphasis='亲子相邻')],
+        self.t=dict(headline_lines=[dict(text='座位安排',style='yellow_tag'),dict(text='范围说明',style='yellow_italic')],result_line=None,caption_blocks=[dict(id='b1',lines=['暂无法保障亲子相邻'])],
             cover=dict(path='cover.png',source_sha256=digest(self.cover),headline='亲子座位',subline='暂无法保障'),
             clips=[dict(path='source.mp4',source_sha256=digest(self.source))])
         self.save()
@@ -47,7 +48,7 @@ class EditorialContractTests(unittest.TestCase):
     def test_report_cannot_overwrite_source_media_or_hardlink_alias(self):
         r=self.ready();before=self.source.read_bytes()
         with self.assertRaisesRegex(ValueError,'overwrite'):write_report(self.source,r)
-        alias=self.root/'alias.json';alias.hardlink_to(self.source)
+        alias=self.root/'alias.json';os.link(self.source,alias)
         with self.assertRaisesRegex(ValueError,'overwrite'):write_report(alias,r)
         self.assertEqual(self.source.read_bytes(),before)
 
@@ -67,8 +68,8 @@ class EditorialContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'feasibility'):check(self.package,'feasible')
 
     def test_changed_copy_invalidates_editorial_review(self):
-        self.t['pages'][0]['red_emphasis']='保障相邻'
-        with self.assertRaisesRegex(ValueError,'stale page'):self.ready()
+        self.t['caption_blocks'][0]['lines']=['保障相邻']
+        with self.assertRaisesRegex(ValueError,'stale caption block'):self.ready()
 
     def test_changed_cover_subtitle_invalidates_review(self):
         self.t['cover']['subline']='可以保障'
@@ -96,6 +97,12 @@ class EditorialContractTests(unittest.TestCase):
     def test_unknown_capture_time_cannot_be_current_scene(self):
         m=self.p['media'][0];m['capture_time_status']='unknown';m['captured_at']=None
         with self.assertRaisesRegex(ValueError,'current scene'):self.ready()
+
+    def test_first_hand_quote_is_a_valid_media_role(self):
+        self.p['media'][0]['role']='first_hand_quote'
+        self.assertEqual(self.ready()['status'],'EDITORIAL_RECORD_READY')
+        self.p['media'][0]['role']='broll'
+        with self.assertRaisesRegex(ValueError,'invalid media role'):self.ready()
 
     def test_dated_background_can_be_used_without_claiming_current_scene(self):
         m=self.p['media'][0];m.update(role='contextual_broll',capture_time_status='unknown',captured_at=None,used_as_current_scene=False)

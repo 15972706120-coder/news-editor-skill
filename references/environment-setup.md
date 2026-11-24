@@ -1,8 +1,8 @@
 # News-Editor 新电脑环境与依赖安装手册
 
-> 渲染适配：标准三段式现在可使用随包 `render_locked_news.py`（Python/Pillow + FFmpeg，见 [可执行制作链路](executable-production.md)），无需为固定排版新建 Remotion 项目。下文 Remotion/Chrome/npm 渲染要求仅适用于选择 Remotion 的实现；浏览器检索自身的依赖仍保留。选择该实现时预检传 `-Renderer remotion -ProjectPath ...`，没有工程即失败；默认 `-Renderer locked-ffmpeg` 的跳过项不代表 Remotion 已通过。
+> 渲染适配：资讯快讯使用随包 `render_news_brief.py`（Python/Pillow + FFmpeg，见 [可执行制作链路](executable-production.md)），不需要 Remotion 工程。`python scripts/smoke_test_brief_pipeline.py --font <微软雅黑粗体>` 可验证本机渲染、混音、封装、校验与分板的接线。下文 Remotion/Chrome/npm 渲染要求只服务于仍选择 Remotion 的旧项目；浏览器检索自身的依赖仍保留。
 
-> 配音使用 MiniMax T2A API（见 [MiniMax TTS 集成](minimax-tts.md)）；Edge TTS 已弃用，`check_environment.ps1` 中的 edge-tts 检查仅为旧项目兼容，不是新制作环境的一部分。
+> 配音是可选模式：默认成片是 BGM 加字幕，不需要任何语音凭据；只有用户要求配音时才使用 MiniMax T2A API（见 [MiniMax TTS 集成](minimax-tts.md)）。Edge TTS 已弃用，`check_environment.ps1` 中的 edge-tts 检查仅为旧项目兼容。
 
 > 适用平台：Windows 10/11 x64  
 > 目标：在一台未配置的新电脑上完成 GitHub 版本核验、热点发现、抖音搜索与下载、新闻女声、Remotion 排版渲染、FFmpeg 合成和最终验收。
@@ -17,7 +17,7 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 | Codex Skill | `news-editor`、`agent-browser`、完整 Remotion Skills | 工作规范、浏览器操作方法、Remotion 编排知识 | 用户 Skills 目录 |
 | 系统运行时 | Git、Node.js、npm/npx、Python、PowerShell | 核对并安全快进 Skill，运行 CLI、Python 模块和预检脚本 | 操作系统 |
 | CLI / Python 包 | `agent-browser`、`yt-dlp` | 抖音检索、视频下载 | 全局 npm 或 Python 环境 |
-| 语音 API | MiniMax T2A（`scripts/minimax_tts.py`） | 新闻女声配音 | 环境变量凭据，按停点检查 |
+| 语音 API（可选） | MiniMax T2A（`scripts/minimax_tts.py`） | 仅用户要求配音时 | 环境变量凭据，按停点检查 |
 | 原生媒体工具 | FFmpeg、FFprobe、Chrome/Chromium | 转码、混音、抽帧、媒体探测、网页登录和渲染 | 系统 PATH 或显式路径 |
 | 项目依赖与资源 | Remotion、React、TypeScript、微软雅黑、BGM 和参考资产 | 版式、时间轴、渲染、中文排版和声音 | 每个项目及 Skill 包 |
 
@@ -288,9 +288,11 @@ python -m pip install Pillow
 
 `py -3` 用户需将这两条命令的 `python` 一并替换为 `py -3`，不要装到另一解释器后跳过检查。缺失时可继续选题与文案，封面几何验收必须停止。
 
-配音不安装本地包：新闻女声由 MiniMax T2A 生成，凭据与调用方式见 [MiniMax TTS 集成](minimax-tts.md)，第一次实际生成配音前才检查环境变量。Edge TTS（`edge-tts`）已弃用，仅旧项目兼容时使用。
+配音为可选模式，不安装本地包：用户要求配音时由 MiniMax T2A 生成，凭据与调用方式见 [MiniMax TTS 集成](minimax-tts.md)，第一次实际生成配音前才检查环境变量。Edge TTS（`edge-tts`）已弃用，仅旧项目兼容时使用。
 
 ## 9. 安装 Remotion 能力
+
+> 资讯快讯的默认链路不使用 Remotion。本节只为仍在维护的旧 Remotion 工程保留。
 
 ### 9.1 完整 Remotion Skills
 
@@ -366,9 +368,10 @@ assets/audio/bgm-02.mp3
 assets/audio/bgm-03.mp3
 assets/references/cover-style-reference.png
 assets/references/cover-typography-reference.png
-assets/references/in-video-typography-reference.png
-assets/references/finished-video-reference.mp4
+assets/references/v3-reference/reference-contact-sheet.png
+assets/references/v3-reference/sample-unmarried-couple.mp4
 scripts/validate_news_video.py
+scripts/render_news_brief.py
 ```
 
 缺失任一 BGM、视觉参考或验收脚本时，不应把该 Skill 视作完整迁移。
@@ -434,9 +437,10 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 - 确认能读到 ID、标题、时长和格式。
 - 不在测试日志中输出 Cookie 或签名媒体地址。
 
-### 12.3 TTS 测试
+### 12.3 渲染、混音与（可选）TTS 测试
 
-- 使用默认女声生成一句中文 MP3。
+- 运行 `python scripts/smoke_test_brief_pipeline.py --font <微软雅黑粗体路径>`，确认输出 `SMOKE_PASSED`，解码帧数等于计划帧数。
+- 仅使用配音模式时：使用默认女声生成一句中文 MP3。
 - 使用 FFprobe 确认音频时长大于 0。
 - 实际播放，确认中文发音正常。
 
@@ -458,7 +462,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 | yt-dlp | 搜索与候选链接整理 | 本地素材下载 |
 | Pillow | 选题、事实与文案 | 原生 PNG 解码与封面几何验收 |
 | FFmpeg / FFprobe | 选题、事实和文案 | 下载合并、媒体质检、裁切、混音、验收 |
-| MiniMax 凭据 | 无配音草稿、用户自带配音 | 新闻女声配音生成（按停点检查） |
+| MiniMax 凭据 | 默认 BGM＋字幕成片、原声模式 | 仅配音模式：新闻配音生成（按停点检查） |
 | Node/npm | 事实、素材下载、FFmpeg 编辑 | Remotion 工程安装和渲染 |
 | Remotion Skill | 已存在工程的机械渲染 | 新工程的可靠设计与时间轴实现 |
 | Remotion npm 包 | FFmpeg 独立处理 | Remotion 预览与渲染 |
@@ -497,6 +501,6 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 - [ ] 微软雅黑常规和粗体存在。
 - [ ] 三首 BGM、视觉参考和验收脚本存在。
 - [ ] `check_environment.ps1` 无必需项失败。
-- [ ] 深度 FFmpeg、TTS 和 Remotion 测试通过。
+- [ ] 渲染/混音冒烟测试通过；使用配音时 TTS 测试通过。
 - [ ] 用户已在专用浏览器 profile 手动登录抖音。
 - [ ] Cookie、Token 和旧电脑临时路径没有进入 Skill 或项目清单。

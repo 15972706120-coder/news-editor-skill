@@ -1,6 +1,6 @@
 # MiniMax TTS 集成
 
-本文件只用于真正生成配音、变更 MiniMax 模型/音色，或处理接口错误。接口字段可能变化；执行前核对 [MiniMax 中国大陆 T2A 官方文档](https://platform.minimaxi.com/docs/api-reference/speech-t2a-http) 或 [MiniMax 国际站 T2A 官方文档](https://platform.minimax.io/docs/api-reference/speech-t2a-http)。
+配音是可选模式：默认成片是 BGM 加字幕，不需要本文件。只有在用户明确要求配音（`audio_mode=tts_bgm`）、真正生成配音、变更 MiniMax 模型/音色或处理接口错误时才读取。接口字段可能变化；执行前核对 [MiniMax 中国大陆 T2A 官方文档](https://platform.minimaxi.com/docs/api-reference/speech-t2a-http) 或 [MiniMax 国际站 T2A 官方文档](https://platform.minimax.io/docs/api-reference/speech-t2a-http)。
 
 ## 调用前停点
 
@@ -57,7 +57,7 @@ python scripts/minimax_tts.py --text-file <page-01.txt> --page-id <page-01> --ou
 - 最多重试 3 次并指数退避：`1000/1001/1002/1024/1033`；`2045` 降速后再试。
 - 鉴权、余额、敏感内容、非法字符、参数、音色和套餐错误不盲目重试：`1004/2049/1008/1026/1027/1042/2013/20132/2056`。完整定义见[官方错误码](https://platform.minimaxi.com/docs/api-reference/errorcode)。
 - `20132` 时使用[官方音色查询接口](https://platform.minimax.io/docs/api-reference/voice-management-get)或音色表核对账户可用音色，不静默换音色。
-- 每页原始 stem 必须完整试听并对照稿件，检查人名、地名、型号、数字、否定词、多音字、停顿、漏读和重读；不合格时改稿或参数并重新生成。
-- 最终混音检查 48kHz/双声道、-17 至 -15 LUFS、真峰值不高于 -3 dBTP，播报区 BGM 比人声低 12±1dB；用耳机与手机外放分别试听。
+- 每个字幕块的原始 stem 必须完整试听并对照稿件，检查人名、地名、型号、数字、否定词、多音字、停顿、漏读和重读；不合格时改稿或参数并重新生成。
+- 最终混音检查 48kHz/双声道，综合响度与真峰值按 config `mix.loudness_targets.tts_bgm`，播报区 BGM 比人声低 config 规定的分贝数；用耳机与手机外放分别试听。
 
 模型与速率限制以[官方模型发布记录](https://platform.minimaxi.com/docs/release-notes/models)和[官方限流说明](https://platform.minimaxi.com/docs/guides/rate-limits)为准，Skill 不写死账户级并发值。

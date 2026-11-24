@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Measured, timeline-bound MiniMax + BGM mix. Never trim a voice to fit a page."""
+"""Measured, timeline-bound brief mix: BGM, optional first-hand original sound, optional per-block TTS.
+
+audio_mode is read from the timeline. Prominent audio (original quotes or TTS) is normalized
+per unit and the BGM is kept config.voice_bgm_delta_db below it on every unit interval.
+Nothing is ever trimmed to fit; an overflowing unit is a timeline error, not a mix edit.
+"""
 from __future__ import annotations
 import argparse
 import json
@@ -7,15 +12,14 @@ import math
 import re
 import subprocess
 import time
-import wave
 from pathlib import Path
-from production_contract import load_timeline, read_json, resolve, sha256, require
+from production_contract import load_timeline, read_json, resolve, sha256, require, wav_info
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def run(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120)
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=180)
     if result.returncode:
         raise RuntimeError(result.stderr[-1200:])
     return result
@@ -31,11 +35,29 @@ def measure(ffmpeg, path, start=None, duration=None):
     return values
 
 
-def quality_ok(lufs, peak, deltas, cfg):
-    lo, hi = cfg['integrated_lufs_range']
-    return (math.isfinite(lufs) and math.isfinite(peak) and lo <= lufs <= hi
-            and peak <= cfg['max_true_peak_dbtp'] and bool(deltas)
-            and all(math.isfinite(d) and abs(d-cfg['voice_bgm_delta_db']) <= cfg['delta_tolerance_db'] for d in deltas))
+def quality_ok(lufs, peak, deltas, target, capped=False):
+    lo, hi = target['integrated_lufs_range']
+    level_ok = (lo <= lufs <= hi) or (capped and lufs >= lo-target.get('cap_slack_db', 0))
+    return (math.isfinite(lufs) and math.isfinite(peak) and level_ok
+            and peak <= target['max_true_peak_dbtp']
+            and all(math.isfinite(d) and abs(d-12.0) <= 1.0 for d in deltas))
+
+
+def prominent_units(plan, base):
+    """Audio that must stay intelligible: quote-clip original sound, or per-caption-block TTS."""
+    fps, mode, units = plan['fps'], plan.get('audio_mode', 'bgm_only'), []
+    if mode == 'original_bgm':
+        for clip in plan.get('clips') or []:
+            if clip.get('use_original_sound'):
+                units.append({'id': f'clip-{clip["start_frame"]}', 'start_frame': clip['start_frame'],
+                              'duration_seconds': (clip['end_frame']-clip['start_frame'])/fps,
+                              'source': resolve(base, clip['path']), 'source_in_seconds': clip['source_in_seconds']})
+    elif mode == 'tts_bgm':
+        for block in plan['caption_blocks']:
+            units.append({'id': block['id'], 'start_frame': block['voice']['start_frame'],
+                          'duration_seconds': block['voice']['duration_seconds'],
+                          'source': resolve(base, block['voice']['path']), 'source_in_seconds': None})
+    return units
 
 
 def main():
@@ -48,9 +70,11 @@ def main():
     args = parser.parse_args()
     started = time.perf_counter()
     plan = load_timeline(args.timeline)
-    require(plan.get('audio_mode', 'tts_bgm') == 'tts_bgm', 'This mixer requires TTS pages')
     cfg = read_json(ROOT/'config.json')['mix']
-    bgm = (args.bgm or ROOT/cfg['bgm_source']).resolve()
+    mode = plan.get('audio_mode', 'bgm_only')
+    target = cfg['loudness_targets'][mode]
+    cap = target.get('prominent_max_lufs')
+    bgm = (args.bgm or ROOT/(plan.get('bgm') or cfg['bgm_source'])).resolve()
     out = args.output.resolve()
     report_path = args.report or out.with_suffix('.mix.json')
     require(out not in {bgm, args.timeline.resolve()}, 'Output must not overwrite an input')
@@ -58,72 +82,101 @@ def main():
     work = out.parent/(out.stem+'-stems')
     work.mkdir(exist_ok=True)
     fps, total = plan['fps'], plan['total_frames']/plan['fps']
-    pages, base, ff = plan['pages'], args.timeline.resolve().parent, args.ffmpeg
+    base, ff = args.timeline.resolve().parent, args.ffmpeg
+    units = prominent_units(plan, base)
     normal, levels = [], []
-    for i, page in enumerate(pages):
-        source = resolve(base, page['voice']['path'])
-        require(out != source.resolve(), 'Output must not overwrite voice')
-        target = work/f'voice-{i:02}.wav'
-        # Dynamics applied before separating stems; final mix remains linear.
-        run([ff, '-v', 'error', '-y', '-i', str(source), '-af',
-             f"loudnorm=I={cfg['voice_target_segment_lufs']}:TP=-6:LRA=7,aresample=48000",
-             '-ac', '2', '-c:a', 'pcm_s24le', str(target)])
-        normal.append(target)
-        levels.append(measure(ff, target)[0])
+    for index, unit in enumerate(units):
+        require(out != unit['source'], 'Output must not overwrite prominent audio')
+        unit_wav, raw = work/f'prominent-{index:02}.wav', work/f'prominent-{index:02}-raw.wav'
+        selection = ['-i', str(unit['source'])] if unit['source_in_seconds'] is None else \
+            ['-ss', str(unit['source_in_seconds']), '-t', str(unit['duration_seconds']), '-i', str(unit['source'])]
+        run([ff, '-v', 'error', '-y', *selection, '-vn', '-ar', '48000', '-ac', '2', '-c:a', 'pcm_s16le', str(raw)])
+        # Measure, then apply plain gain: single-pass loudnorm swallows its tail buffer at EOF and
+        # leaves the unit shorter than its clip; apad only covers the few milliseconds by which a
+        # source audio track may end before its video track.
+        gain = cfg['voice_target_segment_lufs']-measure(ff, raw)[0]
+        run([ff, '-v', 'error', '-y', '-i', str(raw), '-af', f'volume={gain:.2f}dB,apad',
+             '-t', str(unit['duration_seconds']), '-ac', '2', '-c:a', 'pcm_s24le', str(unit_wav)])
+        require(wav_info(unit_wav)['duration_seconds'] >= unit['duration_seconds']-1/48000,
+                f'{unit["id"]}: prominent audio shorter than its clip interval')
+        normal.append(unit_wav)
+        levels.append(measure(ff, unit_wav)[0])
     bgm_raw = work/'bgm-selected.wav'
     run([ff, '-v', 'error', '-y', '-ss', str(cfg['bgm_segment_seconds'][0]), '-i', str(bgm),
          '-t', str(total), '-ar', '48000', '-ac', '2', '-c:a', 'pcm_s24le', str(bgm_raw)])
-    with wave.open(str(bgm_raw), 'rb') as audio:
-        require(audio.getnframes()/audio.getframerate() >= total-1/48000, 'BGM segment too short')
-    gains = []
-    for p, level in zip(pages, levels):
-        v = p['voice']
-        music_level = measure(ff, bgm_raw, v['start_frame']/fps, v['duration_seconds'])[0]
-        gains.append(level-cfg['voice_bgm_delta_db']-music_level)
-    expression = str(10**(gains[-1]/20))
-    for p, gain in reversed(list(zip(pages[:-1], gains[:-1]))):
-        expression = f"if(lt(t,{p['end_frame']/fps}),{10**(gain/20)},{expression})"
+    require(wav_info(bgm_raw)['duration_seconds'] >= total-1/48000, 'BGM segment too short')
+    # BGM gain: constant when nothing is prominent, otherwise stepped per prominent unit interval
+    # (idle level between and around units keeps the ducked level of the nearest units).
+    def linear(db):
+        return 10**(db/20)
+    if units:
+        gains = [level-cfg['voice_bgm_delta_db']-measure(ff, bgm_raw, u['start_frame']/fps, u['duration_seconds'])[0]
+                 for u, level in zip(units, levels)]
+        idle, segments, cursor = target['bgm_solo_lufs']-measure(ff, bgm_raw)[0], [], 0.0
+        for unit, gain in zip(units, gains):
+            start = unit['start_frame']/fps
+            if start > cursor:
+                segments.append((cursor, idle))
+            segments.append((start, gain))
+            cursor = start+unit['duration_seconds']
+        segments.append((cursor, idle))
+        expression = f'{linear(segments[-1][1])}'
+        for index in range(len(segments)-1, 0, -1):
+            expression = f"if(lt(t,{segments[index][0]}),{linear(segments[index-1][1])},{expression})"
+    else:
+        expression = f"{linear(target['target_integrated_lufs']-measure(ff, bgm_raw)[0])}"
     iterations, trim = [], 0.0
-    voice_stem, bgm_stem = work/'voice.wav', work/'bgm.wav'
+    prominent_stem, bgm_stem = work/'prominent.wav', work/'bgm.wav'
     for attempt in range(cfg['gain_iteration_max']):
-        parts, labels = [], []
-        for i, p in enumerate(pages):
-            delay = round(p['voice']['start_frame']/fps*48000)
-            parts.append(f'[{i}:a]volume={trim}dB,adelay={delay}S:all=1[v{i}]')
-            labels.append(f'[v{i}]')
-        parts.append(''.join(labels)+f'amix=inputs={len(pages)}:normalize=0,apad,atrim=duration={total}[v]')
-        inputs = [a for path in normal for a in ('-i', str(path))]
-        run([ff, '-v', 'error', '-y', *inputs, '-filter_complex', ';'.join(parts), '-map', '[v]',
-             '-ar', '48000', '-ac', '2', '-c:a', 'pcm_s24le', str(voice_stem)])
+        if units:
+            parts, labels = [], []
+            for index, unit in enumerate(units):
+                parts.append(f"[{index}:a]volume={trim}dB,adelay={round(unit['start_frame']/fps*48000)}S:all=1[v{index}]")
+                labels.append(f'[v{index}]')
+            parts.append(''.join(labels)+f'amix=inputs={len(units)}:normalize=0,apad,atrim=duration={total}[v]')
+            inputs = [a for path in normal for a in ('-i', str(path))]
+            run([ff, '-v', 'error', '-y', *inputs, '-filter_complex', ';'.join(parts), '-map', '[v]',
+                 '-ar', '48000', '-ac', '2', '-c:a', 'pcm_s24le', str(prominent_stem)])
+        else:
+            run([ff, '-v', 'error', '-y', '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-t', str(total),
+                 '-c:a', 'pcm_s24le', str(prominent_stem)])
         run([ff, '-v', 'error', '-y', '-i', str(bgm_raw), '-af',
              f"volume='{expression}':eval=frame,volume={trim}dB,afade=t=in:d=0.1,afade=t=out:st={total-.15}:d=0.15",
              '-c:a', 'pcm_s24le', str(bgm_stem)])
-        run([ff, '-v', 'error', '-y', '-i', str(voice_stem), '-i', str(bgm_stem),
+        run([ff, '-v', 'error', '-y', '-i', str(prominent_stem), '-i', str(bgm_stem),
              '-filter_complex', 'amix=inputs=2:normalize=0', '-ar', '48000', '-ac', '2',
              '-c:a', 'pcm_s24le', str(out)])
         lufs, peak = measure(ff, out)
-        deltas = []
-        for p in pages:
-            start, duration = p['voice']['start_frame']/fps, p['voice']['duration_seconds']
-            deltas.append(measure(ff, voice_stem, start, duration)[0]-measure(ff, bgm_stem, start, duration)[0])
+        deltas = [measure(ff, prominent_stem, u['start_frame']/fps, u['duration_seconds'])[0]
+                  - measure(ff, bgm_stem, u['start_frame']/fps, u['duration_seconds'])[0] for u in units]
         iterations.append({'attempt': attempt+1, 'trim_db': trim, 'lufs': lufs, 'true_peak_dbtp': peak, 'deltas_db': deltas})
-        if quality_ok(lufs, peak, deltas, cfg) or attempt+1 == cfg['gain_iteration_max']:
+        capped = cap is not None and trim >= cap-max(levels)-1e-6
+        if quality_ok(lufs, peak, deltas, target, capped) or attempt+1 == cfg['gain_iteration_max'] or capped:
             break
-        correction = min(cfg['target_integrated_lufs']-lufs, cfg['max_true_peak_dbtp']-.2-peak)
+        correction = min(target['target_integrated_lufs']-lufs, target['max_true_peak_dbtp']-.2-peak)
+        if cap is not None:
+            correction = min(correction, cap-max(levels)-trim)
         trim += correction
-    passed = quality_ok(lufs, peak, deltas, cfg)
+    capped = cap is not None and trim >= cap-max(levels)-1e-6
+    passed = quality_ok(lufs, peak, deltas, target, capped)
     report = {'status': 'PASS' if passed else 'BLOCKED_AUDIO', 'final_ready': False,
+              'audio_mode': plan.get('audio_mode', 'bgm_only'),
               'timeline_sha256': sha256(args.timeline), 'output': str(out), 'output_sha256': sha256(out),
-              'config_sha256': sha256(ROOT/'config.json'), 'bgm_sha256': sha256(bgm),
-              'voice_stem': str(voice_stem), 'bgm_stem': str(bgm_stem),
-              'stem_sha256': [sha256(voice_stem), sha256(bgm_stem)],
-              'tts_manifest_sha256': [sha256(resolve(base, p['voice']['manifest'])) for p in pages],
-              'final_lufs': lufs, 'final_true_peak_dbtp': peak, 'page_voice_bgm_delta_db': deltas,
-              'total_trim_db': trim, 'iterations': iterations, 'elapsed_seconds': time.perf_counter()-started,
-              'listening_review': 'not_checked', 'measurement_note': 'Both post-gain stems measured on identical voiced intervals; final sum linear.'}
+              'config_sha256': sha256(ROOT/'config.json'), 'bgm': str(bgm), 'bgm_sha256': sha256(bgm),
+              'prominent_stem': str(prominent_stem), 'bgm_stem': str(bgm_stem),
+              'stem_sha256': [sha256(prominent_stem), sha256(bgm_stem)],
+              'prominent_units': [dict(u, source=str(u['source']), lufs=level) for u, level in zip(units, levels)],
+              'tts_manifest_sha256': [sha256(resolve(base, b['voice']['manifest'])) for b in plan['caption_blocks']
+                                      if plan.get('audio_mode') == 'tts_bgm'],
+              'final_lufs': lufs, 'final_true_peak_dbtp': peak, 'unit_prominent_bgm_delta_db': deltas,
+              'total_trim_db': trim, 'prominent_cap_reached': capped, 'loudness_target': target,
+              'iterations': iterations, 'elapsed_seconds': time.perf_counter()-started,
+              'listening_review': 'not_checked',
+              'measurement_note': 'Both post-gain stems measured on identical prominent intervals; final sum linear.'}
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    print(json.dumps({k: report[k] for k in ('status', 'audio_mode', 'final_lufs', 'final_true_peak_dbtp',
+                                             'unit_prominent_bgm_delta_db')}, ensure_ascii=False))
     return 0 if passed else 3
 
 

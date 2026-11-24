@@ -77,9 +77,9 @@ def write_report(output, result):
         for item in [timeline.get('cover', {}), *timeline.get('clips', [])]:
             if isinstance(item, dict) and text(item.get('path')):
                 protected.add(resolve(timeline_path.parent,item['path']))
-        for page in timeline.get('pages', []):
+        for block in timeline.get('caption_blocks', []):
             for key in ('path','manifest'):
-                value=page.get('voice',{}).get(key)
+                value=block.get('voice',{}).get(key)
                 if text(value): protected.add(resolve(timeline_path.parent,value))
     require(output not in protected and not any(output.exists() and p.exists() and output.samefile(p) for p in protected), 'report must not overwrite an input or referenced media')
     temp_path=None
@@ -157,7 +157,7 @@ def validate_package(package, base, stage='facts', timeline=None):
         path = resolve(base, item.get('path'))
         require(path not in media_by_path, 'duplicate media path')
         require(path.is_file() and item.get('sha256') == digest(path), 'stale media hash')
-        require(item.get('role') in ('direct_evidence', 'contextual_broll'), 'invalid media role')
+        require(item.get('role') in ('direct_evidence', 'contextual_broll', 'first_hand_quote'), 'invalid media role')
         require(item.get('capture_time_status') in ('verified', 'unknown'), 'capture time status required')
         require(text(item.get('time_basis')), 'capture time basis required')
         timestamp(item.get('captured_at'), 'media.captured_at', nullable=True)
@@ -165,7 +165,8 @@ def validate_package(package, base, stage='facts', timeline=None):
             require(item.get('captured_at') is not None, 'verified capture time missing')
         require(type(item.get('used_as_current_scene')) is bool, 'current scene flag required')
         if item['used_as_current_scene']:
-            require(item['role'] == 'direct_evidence' and item['capture_time_status'] == 'verified', 'unknown/old context cannot claim current scene')
+            require(item['role'] in ('direct_evidence', 'first_hand_quote') and item['capture_time_status'] == 'verified',
+                    'unknown/old context cannot claim current scene')
             require(text(item.get('current_scene_basis')), 'current scene needs event/time matching evidence')
         refs = item.get('claim_ids')
         require(isinstance(refs, list) and bool(refs) and all(c in claim_ids for c in refs), 'media claim mapping required')
@@ -176,20 +177,25 @@ def validate_package(package, base, stage='facts', timeline=None):
     require(isinstance(timeline, dict), 'ready stage needs timeline')
     require(review.get('copy_media_consistency') == 'passed', 'uncompleted editorial review: copy_media_consistency')
     presentation = package.get('presentation', {})
-    for key in ('headline', 'subtitle'):
-        require(text(presentation.get(key)) and presentation[key] == timeline.get(key), f'stale presentation.{key}')
+    headlines = presentation.get('headline_lines')
+    require(isinstance(headlines, list) and headlines == timeline.get('headline_lines'), 'stale presentation.headline_lines')
+    require(presentation.get('result_line') == timeline.get('result_line'), 'stale presentation.result_line')
     cover = timeline.get('cover', {})
     for field, target in (('cover_headline', 'headline'), ('cover_subline', 'subline')):
         require(text(presentation.get(field)) and presentation[field] == cover.get(target), f'stale presentation.{field}')
-    planned = presentation.get('pages')
-    actual = timeline.get('pages')
-    require(isinstance(planned, list) and bool(planned) and isinstance(actual, list), 'presentation pages required')
-    require(len(planned) == len(actual), 'stale page count')
+    planned = presentation.get('caption_blocks')
+    actual = timeline.get('caption_blocks')
+    require(isinstance(planned, list) and bool(planned) and isinstance(actual, list), 'presentation caption_blocks required')
+    require(len(planned) == len(actual), 'stale caption block count')
     for p, a in zip(planned, actual):
-        for field in ('id', 'narration', 'white_lines', 'red_emphasis'):
-            require(field in p and p[field] == a.get(field), f'stale page {p.get("id")}.{field}')
+        for field in ('id', 'lines', 'highlights'):
+            if field == 'highlights' and field not in p and field not in a:
+                continue
+            require(field in p and p[field] == a.get(field), f'stale caption block {p.get("id")}.{field}')
+        if a.get('narration') is not None:
+            require('narration' in p and p['narration'] == a['narration'], f'stale caption block {p.get("id")}.narration')
         refs = p.get('claim_ids')
-        require(isinstance(refs, list) and bool(refs) and all(c in claim_ids for c in refs), 'page claim mapping required')
+        require(isinstance(refs, list) and bool(refs) and all(c in claim_ids for c in refs), 'caption block claim mapping required')
     timeline_base = Path(timeline['_editorial_timeline_base'])
     for clip in timeline.get('clips', []):
         path = resolve(timeline_base, clip.get('path'))

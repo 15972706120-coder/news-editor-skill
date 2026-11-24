@@ -294,8 +294,8 @@ function Test-CoreFiles {
         'scripts/performance_review.py',
         'references/editorial-feedback-loop.md',
         'references/subagent-orchestration.md',
-        'references/current-production-profile-v2.md',
-        'assets/references/locked-layout/layout-lock-v2.json'
+        'references/current-production-profile-v3.md',
+        'assets/references/locked-layout/layout-lock-v3.json'
     )
     foreach ($relativePath in $requiredFiles) {
         if (-not (Test-Path -LiteralPath (Join-Path $script:SkillRoot $relativePath) -PathType Leaf)) {
@@ -311,7 +311,7 @@ function Test-CoreFiles {
         throw 'SKILL.md does not declare the version gate.'
     }
 
-    $lockData = Get-Content -Raw -LiteralPath (Join-Path $script:SkillRoot 'assets/references/locked-layout/layout-lock-v2.json') -Encoding UTF8 | ConvertFrom-Json
+    $lockData = Get-Content -Raw -LiteralPath (Join-Path $script:SkillRoot 'assets/references/locked-layout/layout-lock-v3.json') -Encoding UTF8 | ConvertFrom-Json
     if ([string]$lockData.status -ne 'active') {
         throw 'The active layout lock is invalid.'
     }
