@@ -1,8 +1,10 @@
 name: Windows smoke
 
-# Verifies the pushed commit itself on GitHub's own Windows host, the way a production Windows
-# machine would receive it: the installed version's gate script fast-forwards to that commit and
-# validates the result with its own (older) file list. The current gates and the brief pipeline
+# Verifies the pushed commit itself on GitHub's own Windows host. A production Windows machine
+# receives a commit when its installed version's gate script fast-forwards to it and validates
+# the result with its own (older) file list. On a push to main that runs for real against GitHub;
+# on any other ref the same validation is reproduced without the network, because until the merge
+# no gate script can fast-forward to the pushed commit. The current gates and the brief pipeline
 # then run on the same commit. Nothing here changes main or touches a production machine.
 # Diagnostics go to annotations and evidence is pushed to a scratch branch, so the result can be
 # inspected without signing in (the workflow token cannot post commit statuses).
@@ -17,7 +19,6 @@ permissions:
   contents: write
 
 env:
-  TRUSTED_REPOSITORY: https://github.com/15972706120-coder/news-editor-skill.git
   ARTIFACT_BRANCH: ci/windows-smoke
   # Installed versions a production machine may still be on. Each one's own gate script must be
   # able to fast-forward to the pushed commit. Add the previous release whenever a new one ships.
@@ -125,49 +126,79 @@ jobs:
           if ($failed) { exit 1 }
           "::notice::POWERSHELL all scripts parse on $(pwsh --version)"
 
-      - name: Production upgrade path (each installed version, through its own gate script, to the pushed commit)
+      - name: Upgrade rehearsal (installed versions' gate scripts against the pushed commit)
         id: upgrade
         shell: pwsh
         run: |
           $ErrorActionPreference = 'stop'
           $PSNativeCommandUseErrorActionPreference = $false
-          $candidate = Join-Path $env:RUNNER_TEMP 'candidate.git'
-          $rewrite = 'url.'+($candidate -replace '\\', '/')+'.insteadOf'
+          # The gate script of one commit, cut after its last function and pointed at the
+          # checked-out tree, runs exactly the validation a machine performs after fast-forwarding,
+          # minus the network part.
+          function Test-GateScript([string]$Sha, [string]$Label) {
+            $source = (git show "$($Sha):scripts/ensure_latest_skill.ps1") -join "`n"
+            if ($LASTEXITCODE -ne 0) { throw "cannot read the gate script of $Label" }
+            $tokens = $null
+            $parseErrors = $null
+            $ast = [System.Management.Automation.Language.Parser]::ParseInput($source, [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count) { throw "the gate script of $Label does not parse" }
+            $functions = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+            foreach ($name in 'Read-And-ValidateConfig', 'Test-CoreFiles') {
+              if (-not ($functions | Where-Object { $_.Name -eq $name })) { throw "the gate script of $Label has no $name" }
+            }
+            $scriptsDir = (Resolve-Path scripts).Path
+            $head = $ast.Extent.Text.Substring(0, ($functions | Select-Object -Last 1).Extent.EndOffset)
+            $tail = 'try { Read-And-ValidateConfig; Test-CoreFiles; Write-Output "VALID version=$($script:Version)" }',
+                    'catch { Write-Output "INVALID $($_.Exception.Message)"; exit 1 }'
+            $check = Join-Path $env:RUNNER_TEMP "gate-check-$Label.ps1"
+            Set-Content -LiteralPath $check -Value (@($head.Replace('$PSScriptRoot', "'$scriptsDir'")) + $tail) -Encoding utf8
+            $result = & pwsh -NoProfile -File $check 2>&1
+            $code = $LASTEXITCODE
+            if ($code -ne 0) { throw "the gate script of $Label rejects the checked-out tree: $($result -join ' ')" }
+            "$($result -join ' ')"
+          }
+          $lines = @()
           try {
-            # The gate scripts only ever talk to the trusted GitHub URL. A local bare repository
-            # stands in for it through url.insteadOf, so the unchanged gate scripts fast-forward to
-            # the pushed commit (what a production machine will do once it is merged), not to the
-            # real main.
-            git init -q --bare $candidate
-            if ($LASTEXITCODE -ne 0) { exit 1 }
-            git push -q $candidate "$($env:GITHUB_SHA):refs/heads/main"
-            if ($LASTEXITCODE -ne 0) { exit 1 }
-            git config --global $rewrite $env:TRUSTED_REPOSITORY
-            $lines = @()
-            foreach ($origin in ($env:UPGRADE_ORIGINS -split ';')) {
-              $label, $sha = $origin -split '=', 2
-              git remote set-url origin $env:TRUSTED_REPOSITORY
-              git checkout -q -B main $sha
-              if ($LASTEXITCODE -ne 0) { exit 1 }
-              $dirty = git status --porcelain=v1 --untracked-files=all
-              if ($dirty) { throw "worktree is not clean: $dirty" }
+            if ($env:GITHUB_REF -eq 'refs/heads/main') {
+              # The pushed commit is GitHub main itself, so every gate script runs for real: the
+              # installed version is checked out, its own gate fast-forwards to the pushed commit
+              # over the network and validates the result, then the new gate confirms LATEST_READY.
+              foreach ($origin in ($env:UPGRADE_ORIGINS -split ';')) {
+                $label, $sha = $origin -split '=', 2
+                git checkout -q -B main $sha
+                if ($LASTEXITCODE -ne 0) { exit 1 }
+                $dirty = git status --porcelain=v1 --untracked-files=all
+                if ($dirty) { throw "worktree is not clean: $dirty" }
+                $gate = & pwsh -NoProfile -File scripts/ensure_latest_skill.ps1 -RunId ([guid]::NewGuid().ToString())
+                $code = $LASTEXITCODE
+                $json = $gate | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
+                $status = if ($json) { ("$json" | ConvertFrom-Json).status } else { 'NO_JSON' }
+                $version = (Get-Content VERSION).Trim()
+                $head = git rev-parse HEAD
+                $lines += "$label -> $version/$($head.Substring(0, 7)) exit=$code status=$status"
+                if ($code -ne 0 -or $status -ne 'UPDATED_READY_RELOAD' -or $head -ne $env:GITHUB_SHA) {
+                  throw "upgrade from $label failed: exit=$code status=$status head=$head output: $($gate -join ' ')"
+                }
+              }
               $gate = & pwsh -NoProfile -File scripts/ensure_latest_skill.ps1 -RunId ([guid]::NewGuid().ToString())
               $code = $LASTEXITCODE
               $json = $gate | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
               $status = if ($json) { ("$json" | ConvertFrom-Json).status } else { 'NO_JSON' }
-              $version = (Get-Content VERSION).Trim()
-              $head = git rev-parse HEAD
-              $lines += "$label -> $version/$($head.Substring(0, 7)) exit=$code status=$status"
-              if ($code -ne 0 -or $status -ne 'UPDATED_READY_RELOAD' -or $head -ne $env:GITHUB_SHA) {
-                throw "upgrade from $label failed: exit=$code status=$status head=$head output: $($gate -join ' ')"
+              $lines += "reloaded gate exit=$code status=$status"
+              if ($code -ne 0 -or $status -ne 'LATEST_READY') { throw "gate on the pushed commit failed: exit=$code status=$status output: $($gate -join ' ')" }
+            } else {
+              # Until the merge, GitHub main is still the previous release. What production machines
+              # will check afterwards is reproduced without the network: the pushed commit must
+              # descend from every installed version, and each installed version's own gate script
+              # must accept the pushed tree. The real network run follows on the push to main.
+              foreach ($origin in ($env:UPGRADE_ORIGINS -split ';')) {
+                $label, $sha = $origin -split '=', 2
+                git merge-base --is-ancestor $sha $env:GITHUB_SHA
+                if ($LASTEXITCODE -ne 0) { throw "the pushed commit does not descend from $label ($sha)" }
+                $lines += "$label gate: $(Test-GateScript $sha $label)"
               }
+              $lines += "pushed gate: $(Test-GateScript $env:GITHUB_SHA 'pushed')"
             }
-            $gate = & pwsh -NoProfile -File scripts/ensure_latest_skill.ps1 -RunId ([guid]::NewGuid().ToString())
-            $code = $LASTEXITCODE
-            $json = $gate | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
-            $status = if ($json) { ("$json" | ConvertFrom-Json).status } else { 'NO_JSON' }
-            $lines += "reloaded gate exit=$code status=$status"
-            if ($code -ne 0 -or $status -ne 'LATEST_READY') { throw "gate on the pushed commit failed: exit=$code status=$status output: $($gate -join ' ')" }
             $head = git rev-parse HEAD
             if ($head -ne $env:GITHUB_SHA) { throw "the working tree is not on the pushed commit: $head" }
             "::notice::GATE $($lines -join ' | ')"
@@ -175,11 +206,8 @@ jobs:
           } catch {
             $msg = (("$($_.Exception.GetType().Name): $($_.Exception.Message)" -replace "`r?`n", ' | ') -replace '%', '%25')
             if ($msg.Length -gt 3500) { $msg = $msg.Substring(0, 3500) + '...' }
-            "::error title=Upgrade path::$msg"
+            "::error title=Upgrade rehearsal::$msg"
             exit 1
-          } finally {
-            # Later steps must reach the real repository again (the evidence push).
-            git config --global --unset $rewrite 2>$null
           }
 
       - name: Consistency check
@@ -330,10 +358,6 @@ jobs:
         run: |
           $tmp = $env:RUNNER_TEMP
           $smoke = Join-Path $tmp 'smoke\smoke'
-          # The upgrade step removes its URL rewrite before exiting; make sure none is left,
-          # because this push has to reach the real repository.
-          $candidate = Join-Path $tmp 'candidate.git'
-          git config --global --unset ('url.'+($candidate -replace '\\', '/')+'.insteadOf') 2>$null
           git checkout -q --orphan $env:ARTIFACT_BRANCH
           git rm -rf --cached -q .
           git clean -fdx -q
