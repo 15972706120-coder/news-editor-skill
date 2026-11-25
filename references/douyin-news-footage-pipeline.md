@@ -82,7 +82,7 @@ open → snapshot → 根据 ref 交互 → 页面变化后重新 snapshot
 
 ```powershell
 $ytDlpCommand = Get-Command yt-dlp -ErrorAction SilentlyContinue | Select-Object -First 1
-$pythonCommand = Get-Command python -ErrorAction SilentlyContinue | Select-Object -First 1
+$pythonCommand = Get-Command python, python3 -ErrorAction SilentlyContinue | Select-Object -First 1
 
 if ($ytDlpCommand) {
   $ytDlpExecutable = $ytDlpCommand.Source
@@ -153,7 +153,7 @@ target_count: 1-3
 
 ### 4.2 运行时根目录与推荐结构
 
-不得在 Skill 中写死盘符、用户名、桌面位置或某台电脑的工具路径。开始任务时按以下优先级确定项目根目录：用户明确指定的目录、当前保存项目根目录、当前工作目录。工作区从项目根派生；输出区是用户配置的独立目录（以仓库根 `config.json` 的 `output.root` 为准），不从项目根派生。如果调用方显式传入其他位置，则以调用方为准。
+不得在 Skill 中写死盘符、用户名、桌面位置或某台电脑的工具路径。开始任务时按以下优先级确定项目根目录：用户明确指定的目录、当前保存项目根目录、当前工作目录。工作区从项目根派生；输出区是用户配置的独立目录（以仓库根 `config.json` 的 `output.platform_roots`、`output.root` 为准），不从项目根派生。如果调用方显式传入其他位置，则以调用方为准。
 
 ```powershell
 $projectRoot = [System.IO.Path]::GetFullPath('<运行时项目根目录>')
@@ -165,13 +165,13 @@ $chineseTitle = '<中文新闻短名>'
 $topicFolder = "$sequence.$chineseTitle"
 
 $topicWorkRoot = Join-Path $workRoot (Join-Path $productionDate $topicFolder)
-$sourceDir = Join-Path $topicWorkRoot '素材\原片'
-$editDir = Join-Path $topicWorkRoot '工程\剪辑副本'
-$evidenceDir = Join-Path $topicWorkRoot '预览\搜索证据'
-$metaDir = Join-Path $topicWorkRoot '日志\下载元数据'
-$sheetDir = Join-Path $topicWorkRoot '预览\联系表'
+$sourceDir = Join-Path $topicWorkRoot '素材' '原片'
+$editDir = Join-Path $topicWorkRoot '工程' '剪辑副本'
+$evidenceDir = Join-Path $topicWorkRoot '预览' '搜索证据'
+$metaDir = Join-Path $topicWorkRoot '日志' '下载元数据'
+$sheetDir = Join-Path $topicWorkRoot '预览' '联系表'
 $sensitiveRoot = Join-Path $workRoot '敏感文件'
-$browserProfileRoot = Join-Path $sensitiveRoot '浏览器配置\抖音'
+$browserProfileRoot = Join-Path $sensitiveRoot '浏览器配置' '抖音'
 ```
 
 变量只在当前任务中解析为绝对路径；写入 Skill、清单和公开文档时使用变量名或相对路径，不回写本机绝对路径。
@@ -302,11 +302,19 @@ $env:AGENT_BROWSER_SESSION = 'douyin-news-2026-08-26'
 
 ```powershell
 $chromeCommand = Get-Command chrome -ErrorAction SilentlyContinue | Select-Object -First 1
-$chromeCandidates = @(
-  (Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'),
-  (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),
-  (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe')
-) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
+$chromeCandidates = if ($IsWindows) {
+  @(
+    (Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'),
+    (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),
+    (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe')
+  )
+} elseif ($IsMacOS) {
+  @(
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    (Join-Path $HOME 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+  )
+} else { @() }
+$chromeCandidates = @($chromeCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) })
 
 if ($chromeCommand) {
   $chromePath = $chromeCommand.Source

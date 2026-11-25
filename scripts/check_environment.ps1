@@ -7,6 +7,8 @@ param(
     [string]$Renderer = 'locked-ffmpeg',
     [string]$FfmpegPath,
     [string]$FfprobePath,
+    # Interpreter to use instead of searching PATH; it still has to be Python 3.10 or newer.
+    [string]$PythonPath,
     [switch]$Deep,
     [switch]$Json
 )
@@ -107,15 +109,31 @@ function Find-FirstFile {
     return $null
 }
 
-$runningOnWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
-if (-not $runningOnWindows) {
-    Add-Check -Name 'windows' -Category 'system' -Required $true -Status 'FAIL' `
-        -Detail '当前预检脚本和默认字体模板面向 Windows。' `
-        -Fix '使用 Windows 10/11 x64，或先为目标系统改写字体、浏览器和路径规则。'
+# Operating-system key shared with config output.platform_roots and layout.bold_font.
+$platformKey = 'linux'
+$userHome = $HOME
+if ($IsWindows) {
+    $platformKey = 'win32'
+    $userHome = $env:USERPROFILE
+}
+elseif ($IsMacOS) {
+    $platformKey = 'darwin'
+}
+
+$osDescription = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
+$osArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+if ($IsWindows) {
+    Add-Check -Name 'platform' -Category 'system' -Required $true -Status 'PASS' `
+        -Detail "$osDescription $osArchitecture"
+}
+elseif ($IsMacOS) {
+    Add-Check -Name 'platform' -Category 'system' -Required $true -Status 'PASS' `
+        -Detail "$osDescription $osArchitecture；资讯快讯链路在 macOS 上按 config 取本系统的字体和输出目录，Remotion 旧工程与平台发布只在 Windows 上验证过"
 }
 else {
-    Add-Check -Name 'windows' -Category 'system' -Required $true -Status 'PASS' `
-        -Detail ([System.Environment]::OSVersion.VersionString)
+    Add-Check -Name 'platform' -Category 'system' -Required $true -Status 'FAIL' `
+        -Detail "当前系统不受支持：$osDescription $osArchitecture。" `
+        -Fix '使用 Windows 10/11 x64 或 macOS，或先为目标系统改写字体、浏览器和路径规则。'
 }
 
 $powerShellVersion = $PSVersionTable.PSVersion
@@ -167,32 +185,47 @@ foreach ($nodeTool in @('npm', 'npx')) {
     }
 }
 
-$pythonPath = Resolve-CommandPath 'python'
-$pythonPrefix = @()
-if (-not $pythonPath) {
-    $pythonPath = Resolve-CommandPath 'py'
-    if ($pythonPath) {
-        $pythonPrefix = @('-3')
-    }
+# An explicit -PythonPath wins. Otherwise Windows keeps its python / py -3 order, while Unix looks
+# for python3 and versioned names; the first interpreter that is 3.10 or newer is the one used.
+$pythonCandidates = [System.Collections.Generic.List[object]]::new()
+if ($PythonPath) {
+    $pythonCandidates.Add([pscustomobject]@{ file = $PythonPath; prefix = @(); label = $PythonPath })
 }
-
-if ($pythonPath) {
-    $pythonProbe = Invoke-External -FilePath $pythonPath -Arguments ($pythonPrefix + @('--version'))
-    $pythonVersion = ConvertTo-VersionValue $pythonProbe.output
-    if ($pythonProbe.exitCode -eq 0 -and $pythonVersion -and $pythonVersion -ge [version]'3.10') {
-        $script:PythonInvocation = [pscustomobject]@{ file = $pythonPath; prefix = $pythonPrefix }
-        Add-Check -Name 'python' -Category 'runtime' -Required $true -Status 'PASS' `
-            -Detail "$($pythonProbe.output) at $pythonPath"
+elseif ($IsWindows) {
+    $pythonPath = Resolve-CommandPath 'python'
+    if ($pythonPath) {
+        $pythonCandidates.Add([pscustomobject]@{ file = $pythonPath; prefix = @(); label = 'python' })
     }
-    else {
-        Add-Check -Name 'python' -Category 'runtime' -Required $true -Status 'FAIL' `
-            -Detail "检测到 $($pythonProbe.output)，要求 Python 3.10 或更高版本。" `
-            -Fix '从 https://www.python.org/downloads/windows/ 安装 Python 3.10+。'
+    $launcherPath = Resolve-CommandPath 'py'
+    if ($launcherPath) {
+        $pythonCandidates.Add([pscustomobject]@{ file = $launcherPath; prefix = @('-3'); label = 'py -3' })
     }
 }
 else {
-    Add-Check -Name 'python' -Category 'runtime' -Required $true -Status 'FAIL' `
-        -Detail '未找到 python 或 py。' -Fix '安装 Python 3.10 或更高版本。'
+    foreach ($pythonName in @('python3', 'python3.14', 'python3.13', 'python3.12', 'python3.11', 'python3.10')) {
+        $foundPath = Resolve-CommandPath $pythonName
+        if ($foundPath) {
+            $pythonCandidates.Add([pscustomobject]@{ file = $foundPath; prefix = @(); label = $pythonName })
+        }
+    }
+}
+
+$pythonSeen = ''
+foreach ($pythonCandidate in $pythonCandidates) {
+    $pythonProbe = Invoke-External -FilePath $pythonCandidate.file -Arguments ($pythonCandidate.prefix + @('--version'))
+    $pythonVersion = ConvertTo-VersionValue $pythonProbe.output
+    if ($pythonProbe.exitCode -eq 0 -and $pythonVersion -and $pythonVersion -ge [version]'3.10') {
+        $script:PythonInvocation = [pscustomobject]@{ file = $pythonCandidate.file; prefix = $pythonCandidate.prefix }
+        Add-Check -Name 'python' -Category 'runtime' -Required $true -Status 'PASS' `
+            -Detail "$($pythonProbe.output) at $($pythonCandidate.file)"
+        break
+    }
+    $pythonSeen = "$pythonSeen $($pythonCandidate.label): $($pythonProbe.output)$($pythonProbe.exception)".Trim()
+}
+if (-not $script:PythonInvocation) {
+    $pythonDetail = if ($pythonSeen) { "检测到$pythonSeen，要求 Python 3.10 或更高版本。" } else { '未找到 python、python3 或 py。' }
+    $pythonFix = if ($IsWindows) { '从 https://www.python.org/downloads/windows/ 安装 Python 3.10+。' } else { '安装 Python 3.10+，或用 -PythonPath 指定解释器。' }
+    Add-Check -Name 'python' -Category 'runtime' -Required $true -Status 'FAIL' -Detail $pythonDetail -Fix $pythonFix
 }
 
 $agentBrowserPath = Resolve-CommandPath 'agent-browser'
@@ -215,8 +248,8 @@ else {
 }
 
 $skillCandidates = @(
-    (Join-Path $env:USERPROFILE '.agents\skills\agent-browser\SKILL.md'),
-    (Join-Path $env:USERPROFILE '.codex\skills\agent-browser\SKILL.md')
+    (Join-Path $userHome '.agents' 'skills' 'agent-browser' 'SKILL.md'),
+    (Join-Path $userHome '.codex' 'skills' 'agent-browser' 'SKILL.md')
 )
 $agentBrowserSkill = Find-FirstFile $skillCandidates
 if ($agentBrowserSkill) {
@@ -230,8 +263,8 @@ else {
 }
 
 $remotionSkillCandidates = @(
-    (Join-Path $env:USERPROFILE '.agents\skills\remotion\SKILL.md'),
-    (Join-Path $env:USERPROFILE '.codex\skills\remotion\SKILL.md')
+    (Join-Path $userHome '.agents' 'skills' 'remotion' 'SKILL.md'),
+    (Join-Path $userHome '.codex' 'skills' 'remotion' 'SKILL.md')
 )
 $remotionSkill = Find-FirstFile $remotionSkillCandidates
 if ($remotionSkill) {
@@ -422,20 +455,36 @@ else {
         -Fix '安装 FFmpeg 完整构建并加入 PATH，或传入 -FfprobePath。'
 }
 
-$programFiles = [Environment]::GetFolderPath('ProgramFiles')
-$programFilesX86 = [Environment]::GetFolderPath('ProgramFilesX86')
-$localAppData = [Environment]::GetFolderPath('LocalApplicationData')
-$browserCandidates = @(
-    (Join-Path $programFiles 'Google\Chrome\Application\chrome.exe'),
-    (Join-Path $programFilesX86 'Google\Chrome\Application\chrome.exe'),
-    (Join-Path $localAppData 'Google\Chrome\Application\chrome.exe'),
-    (Join-Path $programFiles 'Microsoft\Edge\Application\msedge.exe'),
-    (Join-Path $programFilesX86 'Microsoft\Edge\Application\msedge.exe')
-)
+$browserCandidates = @()
+if ($IsWindows) {
+    $programFiles = [Environment]::GetFolderPath('ProgramFiles')
+    $programFilesX86 = [Environment]::GetFolderPath('ProgramFilesX86')
+    $localAppData = [Environment]::GetFolderPath('LocalApplicationData')
+    $browserCandidates = @(
+        (Join-Path $programFiles 'Google\Chrome\Application\chrome.exe'),
+        (Join-Path $programFilesX86 'Google\Chrome\Application\chrome.exe'),
+        (Join-Path $localAppData 'Google\Chrome\Application\chrome.exe'),
+        (Join-Path $programFiles 'Microsoft\Edge\Application\msedge.exe'),
+        (Join-Path $programFilesX86 'Microsoft\Edge\Application\msedge.exe')
+    )
+}
+elseif ($IsMacOS) {
+    $browserCandidates = @(
+        (Join-Path $userHome 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/Applications/Chromium.app/Contents/MacOS/Chromium',
+        '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'
+    )
+}
 $browserPath = Find-FirstFile $browserCandidates
 if ($browserPath) {
     Add-Check -Name 'chromium-browser' -Category 'browser' -Required $true -Status 'PASS' `
         -Detail $browserPath
+}
+elseif ($IsMacOS) {
+    Add-Check -Name 'chromium-browser' -Category 'browser' -Required $true -Status 'FAIL' `
+        -Detail '未在 /Applications 或用户 Applications 中找到 Chrome、Chromium 或 Edge。' `
+        -Fix '安装 Chrome，随后运行 agent-browser install。'
 }
 else {
     Add-Check -Name 'chromium-browser' -Category 'browser' -Required $true -Status 'FAIL' `
@@ -443,41 +492,59 @@ else {
         -Fix '安装 Chrome/Chromium；随后运行 agent-browser install。'
 }
 
-$fontFiles = @(
-    (Join-Path $env:WINDIR 'Fonts\msyh.ttc'),
-    (Join-Path $env:WINDIR 'Fonts\msyhbd.ttc')
-)
-$missingFonts = @($fontFiles | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
-if ($missingFonts.Count -eq 0) {
-    Add-Check -Name 'microsoft-yahei-fonts' -Category 'visual' -Required $true -Status 'PASS' `
-        -Detail ($fontFiles -join ', ')
+# The one bold font this operating system may render with is config layout.bold_font, keyed like
+# output.platform_roots. A missing entry or file is a stop: the renderer never falls back to another face.
+$boldFont = $null
+$fontConfigPath = Join-Path $PSScriptRoot '..' 'config.json'
+if (Test-Path -LiteralPath $fontConfigPath -PathType Leaf) {
+    $fontConfig = Get-Content -LiteralPath $fontConfigPath -Raw | ConvertFrom-Json
+    $layoutSection = $fontConfig.PSObject.Properties['layout']
+    if ($layoutSection) {
+        $boldFontSection = $layoutSection.Value.PSObject.Properties['bold_font']
+        if ($boldFontSection) {
+            $boldFontPlatform = $boldFontSection.Value.PSObject.Properties[$platformKey]
+            if ($boldFontPlatform) {
+                $boldFont = $boldFontPlatform.Value
+            }
+        }
+    }
+}
+if ($boldFont -and (Test-Path -LiteralPath ([string]$boldFont.path) -PathType Leaf)) {
+    Add-Check -Name 'approved-bold-font' -Category 'visual' -Required $true -Status 'PASS' `
+        -Detail "$($boldFont.name) $($boldFont.path)（字体集合序号 $($boldFont.index)）"
+}
+elseif ($boldFont) {
+    Add-Check -Name 'approved-bold-font' -Category 'visual' -Required $true -Status 'FAIL' `
+        -Detail "config.json layout.bold_font.$platformKey 指定的字体文件不存在：$($boldFont.path)" `
+        -Fix '恢复该系统字体，或经用户批准后更新 config.json 的 layout.bold_font。'
 }
 else {
-    Add-Check -Name 'microsoft-yahei-fonts' -Category 'visual' -Required $true -Status 'FAIL' `
-        -Detail "缺失：$($missingFonts -join ', ')" `
-        -Fix '安装 Windows 简体中文补充字体，或经用户批准后更新视觉模板使用其他授权字体。'
+    Add-Check -Name 'approved-bold-font' -Category 'visual' -Required $true -Status 'FAIL' `
+        -Detail "config.json 的 layout.bold_font 没有定义 $platformKey 的粗体字体。" `
+        -Fix '经用户批准后，在 config.json 的 layout.bold_font 中为该系统添加已批准的粗体字体。'
 }
 
 $skillRoot = Split-Path -Parent $PSScriptRoot
+# Relative paths use forward slashes and are split before Join-Path, so backslashes are never read literally on Unix.
 $requiredSkillFiles = @(
     'SKILL.md',
-    'references\environment-setup.md',
-    'references\douyin-news-footage-pipeline.md',
-    'references\editorial-sop.md',
-    'references\visual-audio-template.md',
-    'references\quality-standards.md',
-    'scripts\validate_news_video.py',
-    'scripts\render_news_brief.py',
-    'assets\audio\bgm-01.mp3',
-    'assets\audio\bgm-02.mp3',
-    'assets\audio\bgm-03.mp3',
-    'assets\references\cover-style-reference.png',
-    'assets\references\cover-typography-reference.png',
-    'assets\references\v3-reference\reference-contact-sheet.png'
+    'references/environment-setup.md',
+    'references/douyin-news-footage-pipeline.md',
+    'references/editorial-sop.md',
+    'references/visual-audio-template.md',
+    'references/quality-standards.md',
+    'scripts/validate_news_video.py',
+    'scripts/render_news_brief.py',
+    'assets/audio/bgm-01.mp3',
+    'assets/audio/bgm-02.mp3',
+    'assets/audio/bgm-03.mp3',
+    'assets/references/cover-style-reference.png',
+    'assets/references/cover-typography-reference.png',
+    'assets/references/v3-reference/reference-contact-sheet.png'
 )
 $missingSkillFiles = [System.Collections.Generic.List[string]]::new()
 foreach ($relativePath in $requiredSkillFiles) {
-    $fullPath = Join-Path $skillRoot $relativePath
+    $fullPath = Join-Path $skillRoot ($relativePath -split '/')
     if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf) -or (Get-Item -LiteralPath $fullPath).Length -eq 0) {
         $missingSkillFiles.Add($relativePath)
     }
@@ -492,6 +559,10 @@ else {
         -Fix '重新复制完整 news-editor Skill 目录，不要只复制 SKILL.md。'
 }
 
+if (-not $IsWindows -and ($Renderer -eq 'remotion' -or $ProjectPath)) {
+    Add-Check -Name 'remotion-platform' -Category 'render' -Required $false -Status 'WARN' `
+        -Detail 'Remotion 旧工程链路只在 Windows 上验证过；资讯快讯请使用默认的 locked-ffmpeg。'
+}
 if ($Renderer -eq 'remotion' -and [string]::IsNullOrWhiteSpace($ProjectPath)) {
     Add-Check -Name 'remotion-project' -Category 'render' -Required $true -Status 'FAIL' `
         -Detail '选择了 Remotion，但没有可验证的 ProjectPath。' -Fix '传入实际工程，或明确使用内置 locked-ffmpeg 适配器。'
@@ -567,7 +638,8 @@ else {
                 -Fix '在工程目录执行 npm install 并保留 package-lock.json。'
         }
 
-        $remotionCmd = Join-Path $resolvedProjectPath 'node_modules\.bin\remotion.cmd'
+        $remotionShellName = if ($IsWindows) { 'remotion.cmd' } else { 'remotion' }
+        $remotionCmd = Join-Path $resolvedProjectPath 'node_modules' '.bin' $remotionShellName
         if (Test-Path -LiteralPath $remotionCmd -PathType Leaf) {
             $script:RemotionProjectReady = $true
             Add-Check -Name 'remotion-installed' -Category 'render' -Required $true -Status 'PASS' `
@@ -602,7 +674,7 @@ if ($Deep) {
             )
             if ($mediaProbe.exitCode -eq 0 -and (Test-Path -LiteralPath $mediaTest -PathType Leaf)) {
                 $decodeProbe = Invoke-External -FilePath $script:FfmpegExecutable `
-                    -Arguments @('-v', 'error', '-i', $mediaTest, '-f', 'null', 'NUL')
+                    -Arguments @('-v', 'error', '-i', $mediaTest, '-f', 'null', $(if ($IsWindows) { 'NUL' } else { '/dev/null' }))
                 if ($decodeProbe.exitCode -eq 0) {
                     Add-Check -Name 'ffmpeg-deep-smoke' -Category 'deep-test' -Required $true -Status 'PASS' `
                         -Detail 'H.264 + AAC 生成和完整解码成功。'
@@ -665,7 +737,7 @@ if ($Deep) {
     }
     finally {
         $resolvedTempRoot = [IO.Path]::GetFullPath($tempRoot)
-        $resolvedTempBase = [IO.Path]::GetFullPath($tempBase).TrimEnd('\') + '\'
+        $resolvedTempBase = [IO.Path]::GetFullPath($tempBase).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
         $tempLeaf = Split-Path -Leaf $resolvedTempRoot
         $safeToDelete = $resolvedTempRoot.StartsWith($resolvedTempBase, [StringComparison]::OrdinalIgnoreCase) -and
             $tempLeaf.StartsWith('news-editor-preflight-', [StringComparison]::OrdinalIgnoreCase)

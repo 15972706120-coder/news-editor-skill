@@ -5,16 +5,29 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if (-not $OutputRoot) {
-    # 缺省输出根目录从仓库根 config.json 读取
-    $configPath = Join-Path $PSScriptRoot '..\config.json'
+    # 缺省输出根目录从仓库根 config.json 读取：先取本系统的 output.platform_roots，没有再取 output.root
+    $configPath = Join-Path $PSScriptRoot '..' 'config.json'
     if (Test-Path -LiteralPath $configPath) {
         $cfg = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-        $OutputRoot = $cfg.output.root
+        $platformKey = if ($IsWindows) { 'win32' } elseif ($IsMacOS) { 'darwin' } else { 'linux' }
+        $platformRoots = $cfg.output.PSObject.Properties['platform_roots']
+        if ($platformRoots) {
+            $platformRoot = $platformRoots.Value.PSObject.Properties[$platformKey]
+            if ($platformRoot -and "$($platformRoot.Value)".Trim()) { $OutputRoot = [string]$platformRoot.Value }
+        }
+        if (-not $OutputRoot) { $OutputRoot = [string]$cfg.output.root }
     }
     if (-not $OutputRoot) { throw '未提供 -OutputRoot，且 config.json 缺少 output.root。' }
 }
-$outputPath = [System.IO.Path]::GetFullPath($OutputRoot).TrimEnd('\')
+if ($OutputRoot -eq '~' -or $OutputRoot.StartsWith('~/')) {
+    $OutputRoot = Join-Path $HOME $OutputRoot.Substring(1).TrimStart('/')
+}
+$outputPath = [System.IO.Path]::GetFullPath($OutputRoot)
+if ($outputPath.Length -gt 1) { $outputPath = $outputPath.TrimEnd('\', '/') }
 $issues = [System.Collections.Generic.List[object]]::new()
+# Finder keeps its view settings in .DS_Store; on macOS that file is window dressing, not a deliverable.
+$ignoredNames = @()
+if ($IsMacOS) { $ignoredNames = @('.DS_Store') }
 
 function Add-Issue {
     param(
@@ -29,7 +42,7 @@ if (-not (Test-Path -LiteralPath $outputPath -PathType Container)) {
     throw "OutputRoot not found: $outputPath"
 }
 
-$rootItems = @(Get-ChildItem -LiteralPath $outputPath -Force)
+$rootItems = @(Get-ChildItem -LiteralPath $outputPath -Force | Where-Object { $_.Name -notin $ignoredNames })
 foreach ($item in $rootItems) {
     if (-not $item.PSIsContainer) {
         Add-Issue -Code 'ROOT_FILE' -Path $item.FullName -Message '输出根目录只允许日期文件夹。'
@@ -42,7 +55,7 @@ foreach ($item in $rootItems) {
 
 $dateDirs = @($rootItems | Where-Object { $_.PSIsContainer -and $_.Name -match '^\d{4}-\d{2}-\d{2}$' } | Sort-Object Name)
 foreach ($dateDir in $dateDirs) {
-    $dateItems = @(Get-ChildItem -LiteralPath $dateDir.FullName -Force)
+    $dateItems = @(Get-ChildItem -LiteralPath $dateDir.FullName -Force | Where-Object { $_.Name -notin $ignoredNames })
     foreach ($item in $dateItems | Where-Object { -not $_.PSIsContainer }) {
         Add-Issue -Code 'DATE_LOOSE_FILE' -Path $item.FullName -Message '日期目录下不允许散落文件。'
     }
@@ -63,7 +76,7 @@ foreach ($dateDir in $dateDirs) {
             Add-Issue -Code 'TOPIC_NOT_CHINESE' -Path $topicDir.FullName -Message '新闻目录标题必须包含中文。'
         }
 
-        $topicItems = @(Get-ChildItem -LiteralPath $topicDir.FullName -Force)
+        $topicItems = @(Get-ChildItem -LiteralPath $topicDir.FullName -Force | Where-Object { $_.Name -notin $ignoredNames })
         foreach ($nestedDir in $topicItems | Where-Object PSIsContainer) {
             Add-Issue -Code 'TOPIC_NESTED_DIR' -Path $nestedDir.FullName -Message '新闻交付目录内不允许出现子目录。'
         }

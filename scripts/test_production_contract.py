@@ -13,7 +13,8 @@ import wave
 from pathlib import Path
 from unittest.mock import patch
 from production_contract import (load_timeline, sha256, text_hash, body_geometry, plan_reading_frames,
-                                 plan_voice_frames, fullchar_units, wav_info, lock, config)
+                                 plan_voice_frames, fullchar_units, wav_info, lock, config,
+                                 approved_bold_font, platform_key)
 from mix_timeline_audio import prominent_units
 from validate_news_video import timestamp_checks, validate_timeline_schema, automatic_qa_frames, main as validate_main
 from render_news_brief import geometry, still_motion_filter, draw_text, text_layer, shear, fitted, slide_frames, ease_out
@@ -465,7 +466,7 @@ class BriefRendererHelpers(unittest.TestCase):
                       [80, 1100, 920, 180], 'white')
 
 
-@unittest.skipUnless(os.name == 'nt' and shutil.which('pwsh'), 'Windows PowerShell 7 required')
+@unittest.skipUnless(shutil.which('pwsh'), 'PowerShell 7 required')
 class PublicationPacingGate(unittest.TestCase):
     """Synthetic files exercise only the publication gate, always with -WhatIf."""
     def setUp(self):
@@ -538,6 +539,29 @@ class PublicationPacingGate(unittest.TestCase):
     def test_changed_video_invalidates_reviews(self):
         self.video.write_bytes(b'changed-unit-fixture')
         self.assertNotEqual(self.invoke().returncode, 0)
+
+
+class ApprovedBoldFontTests(unittest.TestCase):
+    """The renderer's font is chosen per operating system from config; an unlisted system is an error, never a fallback."""
+
+    def test_platform_key_follows_the_config_keys(self):
+        self.assertEqual((platform_key('win32'), platform_key('darwin'), platform_key('linux')),
+                         ('win32', 'darwin', 'linux'))
+        self.assertEqual(platform_key('freebsd13'), 'linux')
+        self.assertEqual(platform_key(), {'win32': 'win32', 'darwin': 'darwin'}.get(sys.platform, 'linux'))
+
+    def test_every_supported_system_declares_one_font(self):
+        for key in ('win32', 'darwin'):
+            path, index = approved_bold_font(key)
+            self.assertIsInstance(path, Path)
+            self.assertTrue(str(path))
+            self.assertIs(type(index), int)
+            self.assertGreaterEqual(index, 0)
+
+    def test_unlisted_system_is_an_error_not_a_fallback(self):
+        if 'linux' not in config()['layout']['bold_font']:
+            with self.assertRaises(KeyError):
+                approved_bold_font('sunos5')
 
 
 if __name__ == '__main__':

@@ -42,9 +42,9 @@ pwsh -NoProfile -File '<SkillRoot>\scripts\ensure_latest_skill.ps1' -RunId '<本
 
 ## 环境启动门
 
-在新电脑第一次使用、基础工具升级后，或开始包含“抖音检索/下载、渲染、混音”的完整制作前，必须读取 [references/environment-setup.md](references/environment-setup.md)，并使用 PowerShell 7（`pwsh`）运行 `scripts/check_environment.ps1`。默认链路只需要 Python/Pillow、FFmpeg/FFprobe 和微软雅黑粗体；MiniMax 密钥只在用户要求配音（`tts_bgm`）且首次实际生成前检查，其他必需项失败时停在受影响节点。可用 `scripts/smoke_test_brief_pipeline.py` 用内置样片跑通渲染→混音→封装→校验→分板，验证本机引擎接线。
+在新电脑第一次使用、基础工具升级后，或开始包含“抖音检索/下载、渲染、混音”的完整制作前，必须读取 [references/environment-setup.md](references/environment-setup.md)，并使用 PowerShell 7（`pwsh`）运行 `scripts/check_environment.ps1`。默认链路只需要 Python/Pillow、FFmpeg/FFprobe 和本系统已批准的粗体字体（Windows 为微软雅黑粗体，macOS 为冬青黑体 W6，路径与序号读 config 的 `layout.bold_font`）；MiniMax 密钥只在用户要求配音（`tts_bgm`）且首次实际生成前检查，其他必需项失败时停在受影响节点。可用 `scripts/smoke_test_brief_pipeline.py` 用内置样片跑通渲染→混音→封装→校验→分板，验证本机引擎接线。
 
-依赖分层如下：`agent-browser` 与 yt-dlp 负责检索下载；FFmpeg/FFprobe、Chrome、Node.js、Python 和微软雅黑属于系统环境；MiniMax 通过 `scripts/minimax_tts.py` 调用官方 HTTPS API，仅为可选配音模式服务。
+依赖分层如下：`agent-browser` 与 yt-dlp 负责检索下载；FFmpeg/FFprobe、Chrome、Node.js、Python 和已批准的粗体字体属于系统环境；MiniMax 通过 `scripts/minimax_tts.py` 调用官方 HTTPS API，仅为可选配音模式服务。
 
 用户未提供明确新闻主题时，先读取并执行 [references/topic-discovery.md](references/topic-discovery.md)。完整制作或跨多个节点的任务，读取 [references/editorial-sop.md](references/editorial-sop.md)；需要并行子智能体、批量主题或控制上下文长度时，再读取并执行 [references/subagent-orchestration.md](references/subagent-orchestration.md)，并用 `scripts/orchestration_contract.py` 校验任务包和交接包。写文案、排字幕块、选择音频模式或混音时，读取 [references/visual-audio-template.md](references/visual-audio-template.md)；制作封面或准备发布时还必须读取 [references/cover-platform-layout-v3.md](references/cover-platform-layout-v3.md)。所有封面与正文页面必须再读取 [references/locked-layout-validation.md](references/locked-layout-validation.md)，以 `layout-lock-v3.json` 为唯一坐标源，并在草稿与最终 MP4 上运行 `scripts/extract_layout_proof.py`。完整制作、草稿复核或最终交付必须读取并执行 [references/delivery-gates.md](references/delivery-gates.md) 的 G0–G8 质量门；准备对外发布的成片读取 [references/quality-standards.md](references/quality-standards.md)；组织输出目录读取 [references/delivery-contract.md](references/delivery-contract.md)；写时间轴与运行脚本读取 [references/executable-production.md](references/executable-production.md)。
 

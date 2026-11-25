@@ -6,10 +6,10 @@
 
 按账号实测的题材优先级筛选热点、核验事实、下载可追溯素材，套用锁定的“标题块＋实拍带＋滑入字幕”版式，以 BGM＋字幕产出 9–15 秒竖屏成片，验收后发布。
 
-[![Version](https://img.shields.io/badge/version-2.0.4-00DCE6?style=flat-square)](VERSION)
+[![Version](https://img.shields.io/badge/version-2.1.0-00DCE6?style=flat-square)](VERSION)
 ![Status](https://img.shields.io/badge/status-active-2EA44F?style=flat-square)
 ![Canvas](https://img.shields.io/badge/canvas-1080%C3%971920-FFD400?style=flat-square)
-![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?style=flat-square)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20%C2%B7%20macOS-0078D4?style=flat-square)
 
 [快速开始](#快速开始) · [功能](#核心功能) · [架构](#工作架构) · [对标成片](#对标成片) · [质量标准](#质量标准) · [文档](#文档导航)
 
@@ -157,10 +157,17 @@ git clone https://github.com/15972706120-coder/news-editor-skill.git $skillRoot
 
 ```powershell
 pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
-python (Join-Path $skillRoot 'scripts\smoke_test_brief_pipeline.py') --font (Join-Path $env:WINDIR 'Fonts\msyhbd.ttc')
+python (Join-Path $skillRoot 'scripts\smoke_test_brief_pipeline.py')
 ```
 
-Windows 完整制作与平台发布需要 PowerShell 7、Python/Pillow、浏览器检索能力、agent-browser、yt-dlp、FFmpeg/FFprobe 和微软雅黑；平台发布必须使用用户日常 Chrome 及桌面控制，核对目标生活号。默认成片是 BGM 加字幕，不需要 MiniMax；只有用户要求配音时才配置 MiniMax API 环境变量。新增台账、编辑记录和 CSV 复盘工具只依赖 Python 标准库，可跨平台执行。不要把 API Key、Cookie 或浏览器登录信息提交到 GitHub 或发送到聊天中。
+macOS 上同一组命令写成下面这样：解释器用 `-PythonPath` 指定 3.10 及以上，字体自动取 config 里本系统已批准的那一款。
+
+```powershell
+pwsh -NoProfile -File (Join-Path $skillRoot 'scripts' 'check_environment.ps1') -PythonPath <python-3.10+>
+python3 (Join-Path $skillRoot 'scripts' 'smoke_test_brief_pipeline.py')
+```
+
+Windows 完整制作与平台发布需要 PowerShell 7、Python/Pillow、浏览器检索能力、agent-browser、yt-dlp、FFmpeg/FFprobe 和微软雅黑；平台发布必须使用用户日常 Chrome 及桌面控制，核对目标生活号。macOS 自 2.1.0 起支持资讯快讯链路：工具相同，字体是 config `layout.bold_font` 为 macOS 记录的那一款，成片默认写到 `output.platform_roots` 为 macOS 指定的目录；平台发布流程仍只在 Windows 上验证过。默认成片是 BGM 加字幕，不需要 MiniMax；只有用户要求配音时才配置 MiniMax API 环境变量。新增台账、编辑记录和 CSV 复盘工具只依赖 Python 标准库，可跨平台执行。不要把 API Key、Cookie 或浏览器登录信息提交到 GitHub 或发送到聊天中。
 
 ### 3. 调用
 
@@ -249,7 +256,7 @@ python -X utf8 (Join-Path $skillRoot 'scripts\test_orchestration_contract.py')
 python -X utf8 (Join-Path $skillRoot 'scripts\test_editorial_contract.py')
 python -X utf8 (Join-Path $skillRoot 'scripts\test_editorial_ledger.py')
 python -X utf8 (Join-Path $skillRoot 'scripts\test_performance_review.py')
-python -X utf8 (Join-Path $skillRoot 'scripts\smoke_test_brief_pipeline.py') --font (Join-Path $env:WINDIR 'Fonts\msyhbd.ttc')
+python -X utf8 (Join-Path $skillRoot 'scripts\smoke_test_brief_pipeline.py')
 ```
 
 `hooks/pre-commit` 会检查版本与配置一致性、失效链接、资产、Python 语法、封面几何、时间轴/声音/媒体契约以及子智能体交接哈希、编辑记录身份、台账占位/授权/恢复与后台数据口径。可用 NEWS_EDITOR_PYTHON 为提交门指定实际 Python 可执行文件。`smoke_test_brief_pipeline.py` 验证真实编码链，只生成内部诊断样片，不是新闻产物。

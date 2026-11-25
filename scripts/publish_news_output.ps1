@@ -39,9 +39,26 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Every "is inside" test is built from this, so the same rule holds on either operating system.
+$script:DirSeparator = [System.IO.Path]::DirectorySeparatorChar
+
+function Expand-LocalPath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    # A leading ~ is the user's home folder, which is how config output.platform_roots writes it.
+    if ($Path -eq '~' -or $Path.StartsWith(([string]'~' + $script:DirSeparator))) {
+        $homeDirectory = if ($IsWindows) { $env:USERPROFILE } else { $HOME }
+        $Path = Join-Path $homeDirectory $Path.Substring(1).TrimStart([System.IO.Path]::DirectorySeparatorChar)
+    }
+    return [System.Environment]::ExpandEnvironmentVariables($Path)
+}
+
 function Get-NormalizedPath {
     param([Parameter(Mandatory = $true)][string]$Path)
-    return [System.IO.Path]::GetFullPath($Path).TrimEnd('\')
+    $fullPath = [System.IO.Path]::GetFullPath((Expand-LocalPath $Path))
+    if ($fullPath.Length -gt 1) {
+        $fullPath = $fullPath.TrimEnd('\', '/')
+    }
+    return $fullPath
 }
 
 function Assert-PathInside {
@@ -53,17 +70,23 @@ function Assert-PathInside {
 
     $childPath = Get-NormalizedPath $Child
     $parentPath = Get-NormalizedPath $Parent
-    if (-not $childPath.StartsWith($parentPath + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+    if (-not $childPath.StartsWith($parentPath + $script:DirSeparator, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "$Label escapes its required root: $childPath"
     }
 }
 
 if (-not $OutputRoot) {
-    # 缺省输出根目录从仓库根 config.json 读取
-    $configPath = Join-Path $PSScriptRoot '..\config.json'
+    # 缺省输出根目录从仓库根 config.json 读取：先取本系统的 output.platform_roots，没有再取 output.root
+    $configPath = Join-Path $PSScriptRoot '..' 'config.json'
     if (Test-Path -LiteralPath $configPath) {
         $cfg = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-        $OutputRoot = $cfg.output.root
+        $platformKey = if ($IsWindows) { 'win32' } elseif ($IsMacOS) { 'darwin' } else { 'linux' }
+        $platformRoots = $cfg.output.PSObject.Properties['platform_roots']
+        if ($platformRoots) {
+            $platformRoot = $platformRoots.Value.PSObject.Properties[$platformKey]
+            if ($platformRoot -and "$($platformRoot.Value)".Trim()) { $OutputRoot = [string]$platformRoot.Value }
+        }
+        if (-not $OutputRoot) { $OutputRoot = [string]$cfg.output.root }
     }
     if (-not $OutputRoot) { throw '未提供 -OutputRoot，且 config.json 缺少 output.root。' }
 }
@@ -80,7 +103,7 @@ $fullTitle = "$title，$subtitle"
 if ($outputPath -eq $workPath) {
     throw 'OutputRoot and WorkRoot must be different directories.'
 }
-if ($workPath.StartsWith($outputPath + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+if ($workPath.StartsWith($outputPath + $script:DirSeparator, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw 'WorkRoot must not be inside OutputRoot.'
 }
 if (-not (Test-Path -LiteralPath $videoPath -PathType Leaf)) {
@@ -115,6 +138,10 @@ $editorial = Get-Content -LiteralPath $editorialPath -Raw | ConvertFrom-Json
 if ([string]::IsNullOrWhiteSpace($acceptance.content_id) -or $acceptance.content_id -cne $editorial.content_id) {
     throw 'Acceptance content_id must match the editorial record and production ledger.'
 }
+# Unix hosts usually ship no bare "python"; use python3 there.
+if ($PythonExecutable -eq 'python' -and -not (Get-Command 'python' -ErrorAction SilentlyContinue)) {
+    $PythonExecutable = 'python3'
+}
 $editorialCheck = & $PythonExecutable (Join-Path $PSScriptRoot 'editorial_contract.py') verify `
     --report $editorialPath --video $videoPath --cover $coverPath --title $title --subtitle $subtitle
 if ($LASTEXITCODE -ne 0) {
@@ -132,7 +159,8 @@ if ($machine.passed -ne $true -or $machine.diagnostic_only -eq $true -or
 if ([string]::IsNullOrWhiteSpace($title) -or $title -notmatch '[\p{IsCJKUnifiedIdeographs}]') {
     throw 'CoverTitle must contain at least one Chinese character.'
 }
-$invalidChars = [System.IO.Path]::GetInvalidFileNameChars()
+# The Windows set is applied on every system, so a title accepted on one host is a valid file name on the other.
+$invalidChars = [char[]]@('"', '<', '>', '|', ':', '*', '?', '\', '/') + [char[]](0..31 | ForEach-Object { [char]$_ })
 if ($title.IndexOfAny($invalidChars) -ge 0 -or $fullTitle.IndexOfAny($invalidChars) -ge 0) {
     throw 'Cover title contains invalid Windows filename characters. Rewrite the cover title before rendering; do not silently rename only the file.'
 }

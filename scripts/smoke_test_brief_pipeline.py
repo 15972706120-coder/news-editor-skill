@@ -21,6 +21,8 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parent
 ROOT = SCRIPTS.parent
 
+from production_contract import approved_bold_font
+
 # stdout is machine-readable JSON and may be redirected to a file; never depend on the console code page.
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -106,8 +108,13 @@ def main() -> int:
     # treated by validate/proof as an explicit file path and fail with "ffprobe not found".
     parser.add_argument("--ffmpeg")
     parser.add_argument("--ffprobe")
-    parser.add_argument("--font", type=Path, default=Path("C:/Windows/Fonts/msyhbd.ttc"))
-    parser.add_argument("--font-index", type=int, default=0)
+    # Left unset, the font is the one this operating system is allowed to render with.
+    try:
+        default_font, default_font_index = approved_bold_font()
+    except KeyError:
+        default_font, default_font_index = Path("C:/Windows/Fonts/msyhbd.ttc"), 0
+    parser.add_argument("--font", type=Path, default=default_font, help="defaults to this OS's approved bold font from config.json")
+    parser.add_argument("--font-index", type=int, default=default_font_index)
     parser.add_argument("--work-dir", type=Path, help="defaults to a fresh temporary directory")
     parser.add_argument("--keep", action="store_true", help="keep the work directory after success")
     args = parser.parse_args()

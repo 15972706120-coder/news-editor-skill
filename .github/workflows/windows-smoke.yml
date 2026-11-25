@@ -22,7 +22,7 @@ env:
   ARTIFACT_BRANCH: ci/windows-smoke
   # Installed versions a production machine may still be on. Each one's own gate script must be
   # able to fast-forward to the pushed commit. Add the previous release whenever a new one ships.
-  UPGRADE_ORIGINS: '1.15.0=6fb1d3bc3bfeb74fdaa813200ba18223903a7dbd;2.0.3=4ab4f3f0aac1f4c77ddbf76e46ad398f92c7b14c'
+  UPGRADE_ORIGINS: '1.15.0=6fb1d3bc3bfeb74fdaa813200ba18223903a7dbd;2.0.3=4ab4f3f0aac1f4c77ddbf76e46ad398f92c7b14c;2.0.4=d9595b8a388841fcd7d03a7d0ed32f42f6a4643b'
 
 jobs:
   windows:

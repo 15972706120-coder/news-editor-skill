@@ -4,7 +4,7 @@
 
 > 配音是可选模式：默认成片是 BGM 加字幕，不需要任何语音凭据；只有用户要求配音时才使用 MiniMax T2A API（见 [MiniMax TTS 集成](minimax-tts.md)）。Edge TTS 已弃用，`check_environment.ps1` 中的 edge-tts 检查仅为旧项目兼容。
 
-> 适用平台：Windows 10/11 x64  
+> 适用平台：Windows 10/11 x64（生产机）。macOS 自 2.1.0 起支持资讯快讯链路，各节注明 macOS 的差异；Remotion 旧工程与平台发布仍只在 Windows 上验证  
 > 目标：在一台未配置的新电脑上完成 GitHub 版本核验、热点发现、抖音搜索与下载、新闻女声、Remotion 排版渲染、FFmpeg 合成和最终验收。
 > 执行原则：每次运行先通过 Skill 版本启动门，再安装或预检基础环境并进入新闻制作；不要在制作中途临时猜测工具路径或随意更换技术路线。
 
@@ -27,7 +27,7 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 
 ### 2.1 完整制作必须具备
 
-- Windows 10/11 x64。
+- Windows 10/11 x64 或 macOS（资讯快讯链路）。
 - Git，并能通过 HTTPS 访问 GitHub；每次运行必须实时核验远端 commit。
 - PowerShell 7 或更高版本；使用 `pwsh` 运行预检和制作脚本。
 - Node.js 24 LTS 或兼容的新版本，并包含 npm、npx。
@@ -40,7 +40,7 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 - FFmpeg 和 FFprobe；FFmpeg 构建必须包含 H.264、AAC 以及新闻流程所需滤镜。
 - Chrome、Chrome for Testing、Chromium 或受支持的 Edge 浏览器。
 - Remotion 完整 Skills，以及每个视频项目自己的 Remotion npm 依赖。
-- 微软雅黑常规和粗体字体，或用户明确批准并同步修改模板的替代中文字体。
+- 本系统已批准的粗体字体：Windows 为微软雅黑粗体，macOS 为冬青黑体 W6；文件与序号记在 config 的 `layout.bold_font`，换字体必须经用户批准。
 - News-Editor 自带的三个 BGM、视觉参考和验收脚本。
 - 可访问新闻网站、抖音、npm/PyPI、MiniMax API 的网络。
 - 用户在专用浏览器配置中手动完成的抖音登录态。
@@ -120,6 +120,8 @@ news-editor/
 $skillTarget = Join-Path $env:USERPROFILE '.agents\skills\news-editor'
 ```
 
+macOS 上是同一个相对位置：`$skillTarget = Join-Path $HOME '.agents' 'skills' 'news-editor'`，用 `git clone` 克隆整个仓库。下面的 `Test-Path` 示例在 macOS 上把子路径写成多段，例如 `Join-Path $skillTarget 'scripts' 'ensure_latest_skill.ps1'`。
+
 安装后检查：
 
 ```powershell
@@ -151,9 +153,11 @@ winget install --exact --id Microsoft.PowerShell
 pwsh --version
 ```
 
+macOS：从 PowerShell 的 GitHub Releases 取官方 `osx-arm64` 压缩包，核对发布页的哈希后解压到用户目录（例如 `~/.local/opt`），用 `pwsh` 的绝对路径运行；也可以用 `brew install --cask powershell`。版本门和环境检查在 macOS 上用同一个 `pwsh` 运行。
+
 ### 6.2 Node.js
 
-使用 [Node.js 官方下载页](https://nodejs.org/en/download) 安装当前 LTS。当前 `agent-browser` 和完整 Remotion 流程建议使用 Node.js 24 LTS。
+使用 [Node.js 官方下载页](https://nodejs.org/en/download) 安装当前 LTS（macOS 也可用 nvm）。当前 `agent-browser` 和完整 Remotion 流程建议使用 Node.js 24 LTS。
 
 可选的 Windows Package Manager 命令：
 
@@ -181,6 +185,13 @@ python --version
 py -3 --version
 ```
 
+macOS：系统自带的 `python3` 可能低于 3.10。另装一个 3.10+（例如 3.12）后，单独建一个环境放 Pillow、yt-dlp 等依赖（uv 管理的 Python 不允许直接往里装包），预检时用 `-PythonPath` 指向它：
+
+```powershell
+python3.12 -m venv ~/.local/share/news-editor/venv
+~/.local/share/news-editor/venv/bin/python -m pip install pillow numpy yt-dlp
+```
+
 ### 6.4 Chrome 或 Chromium 浏览器
 
 安装 [Google Chrome](https://www.google.com/chrome/) 或受支持的 Chromium 浏览器。News-Editor 需要：
@@ -195,6 +206,8 @@ py -3 --version
 winget install --exact --id Google.Chrome
 ```
 
+macOS：把 Chrome 装进 `/Applications` 即可，预检会找到 Google Chrome、Chromium 或 Edge 的标准位置。
+
 不要把用户日常 Chrome 主 profile 作为自动化 profile。使用专用目录并单独登录。
 
 ### 6.5 FFmpeg 和 FFprobe
@@ -204,6 +217,8 @@ FFmpeg 官方只直接发布源代码，并在[官方下载页](https://ffmpeg.o
 ```powershell
 winget install --exact --id Gyan.FFmpeg
 ```
+
+macOS：任选一种带 `libx264` 与 `aac` 的 arm64 构建（Homebrew、静态构建，或 npm、pip 包自带的预编译二进制），把 `ffmpeg` 和 `ffprobe` 放进 PATH；或在预检时用 `-FfmpegPath`、`-FfprobePath` 指定。
 
 重新打开终端后验证：
 
@@ -251,6 +266,8 @@ npx -y skills@latest add vercel-labs/agent-browser -g -y
 Test-Path (Join-Path $env:USERPROFILE '.agents\skills\agent-browser\SKILL.md')
 Test-Path (Join-Path $env:USERPROFILE '.codex\skills\agent-browser\SKILL.md')
 ```
+
+macOS 上写成 `Join-Path $HOME '.codex' 'skills' 'agent-browser' 'SKILL.md'`。
 
 第一次真实检索前，按 `references/douyin-news-footage-pipeline.md` 建立专用 Chrome profile，由用户手动登录抖音。不要自动导出或迁移 Cookie。
 
@@ -347,7 +364,7 @@ npm install --save-dev --save-exact typescript @types/react @types/react-dom
 
 ## 10. 字体、BGM 和参考资产
 
-News-Editor 默认固定使用微软雅黑：
+News-Editor 在每个系统上只用一款经批准的粗体字体，Windows 上是微软雅黑：
 
 ```powershell
 Test-Path (Join-Path $env:WINDIR 'Fonts\msyh.ttc')
@@ -359,6 +376,8 @@ Test-Path (Join-Path $env:WINDIR 'Fonts\msyhbd.ttc')
 1. 在 Windows“可选功能”中安装简体中文补充字体；或使用有明确授权的字体。
 2. 如果改用其他字体，必须由用户批准，并同步更新 `references/visual-audio-template.md`。
 3. 禁止在渲染时静默替换成外观明显不同的字体。
+
+macOS 上是系统自带的冬青黑体 W6（2026-11-25 经用户看过同版式对比后批准），路径与序号读 config 的 `layout.bold_font`，不需要另装字体。
 
 Skill 内置资源必须存在且文件非空：
 
@@ -386,6 +405,12 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\ensure_latest_skill.ps1') -
 if ($LASTEXITCODE -ne 0) { throw '版本核验未通过，停止当前任务。' }
 # Agent 检查返回状态，若发生更新，先重新读取新版规范，再单独执行下行。
 pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1')
+```
+
+macOS 上同一条命令加上解释器：
+
+```powershell
+pwsh -NoProfile -File (Join-Path $skillRoot 'scripts' 'check_environment.ps1') -PythonPath ~/.local/share/news-editor/venv/bin/python
 ```
 
 如果因平台兼容保留多个扫描目录，应分别运行版本门并确认它们返回相同 `remote_sha`；同一平台只配置一个发现入口。版本门发生更新时，必须重新读取该目录中的 `SKILL.md`、`config.json` 与所需 references 后再执行环境预检。
@@ -417,6 +442,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 - 存在任何必需项 `FAIL` 时，脚本退出码为 1，完整制作不得开始。
 - `WARN` 表示需要人工步骤或当前模式未检查，例如尚未指定 Remotion 项目、尚未登录抖音。
 - 只有预检通过后才进入选题、素材和渲染节点。
+- Windows 之外的系统上，预检只放行 macOS；Remotion 旧工程与平台发布流程仍只在 Windows 上验证过。
 - 预检脚本只检测，不自动安装软件，不修改浏览器登录态。
 
 ## 12. 新电脑的最终冒烟测试
@@ -438,7 +464,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 
 ### 12.3 渲染、混音与（可选）TTS 测试
 
-- 运行 `python scripts/smoke_test_brief_pipeline.py --font <微软雅黑粗体路径>`，确认输出 `SMOKE_PASSED`，解码帧数等于计划帧数。素材由脚本自己生成，不需要任何样片或下载文件。
+- 运行 `python scripts/smoke_test_brief_pipeline.py`（默认字体取 config 里本系统已批准的那一款；需要时用 `--font`、`--font-index` 指定），确认输出 `SMOKE_PASSED`，解码帧数等于计划帧数。素材由脚本自己生成，不需要任何样片或下载文件。
 - 仅使用配音模式时：使用默认女声生成一句中文 MP3。
 - 使用 FFprobe 确认音频时长大于 0。
 - 实际播放，确认中文发音正常。
@@ -467,7 +493,8 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 | Remotion Skill | 已存在工程的机械渲染 | 新工程的可靠设计与时间轴实现 |
 | Remotion npm 包 | FFmpeg 独立处理 | Remotion 预览与渲染 |
 | Chrome/Chromium | 非浏览器事实整理 | 登录态搜索、CDP、Remotion 浏览器渲染 |
-| 微软雅黑 | 选题、素材和音频 | 使用默认视觉模板的最终渲染 |
+| 已批准的粗体字体 | 选题、素材和音频 | 使用默认视觉模板的最终渲染 |
+| 既非 Windows 也非 macOS 的系统 | 无 | 全部制作节点 |
 | BGM 资产 | 无 BGM 的内部测试 | 默认完整混音交付 |
 | 网络 | 本地已有素材的部分编辑 | 热点发现、抖音搜索、下载、MiniMax 配音 |
 
@@ -498,7 +525,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 - [ ] Chrome/Chromium 可见浏览器存在。
 - [ ] Remotion 完整 Skills 已安装。
 - [ ] Remotion 项目包含 `package-lock.json` 并完成 `npm ci`。
-- [ ] 微软雅黑常规和粗体存在。
+- [ ] 本系统已批准的粗体字体存在（config `layout.bold_font`）。
 - [ ] 三首 BGM、视觉参考和验收脚本存在。
 - [ ] `check_environment.ps1` 无必需项失败。
 - [ ] 渲染/混音冒烟测试通过；使用配音时 TTS 测试通过。

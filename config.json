@@ -1,5 +1,5 @@
 {
-  "version": "2.0.4",
+  "version": "2.1.0",
   "status": "active",
   "_readme": "News-Editor 全部制作 FACT 的唯一机器事实源。文档只引用本文件、不复述其中的值；脚本直接读取。修改任何值只改这里。",
   "skill_update": {
@@ -53,6 +53,10 @@
   },
   "output": {
     "root": "D:\\每日新闻",
+    "platform_roots": {
+      "darwin": "~/Documents/每日新闻"
+    },
+    "platform_roots_note": "按操作系统覆盖 root，键为 win32/darwin/linux，开头的 ~ 表示用户主目录；没有列出的系统沿用 root。传递时可用 -OutputRoot 覆盖。",
     "date_dir_pattern": "YYYY-MM-DD（北京时间生产日期）",
     "topic_dir_pattern": "{sequence}.{cover_title_short}",
     "final_video_name": "{cover_title_full}.mp4",
@@ -325,7 +329,22 @@
   "layout": {
     "active_lock_file": "assets/references/locked-layout/layout-lock-v3.json",
     "human_readable_mirror": "references/locked-layout-validation.md",
-    "tolerance_px": 2
+    "tolerance_px": 2,
+    "bold_font": {
+      "_readme": "全片唯一的粗体字体，按操作系统给出字体文件与它在字体集合里的序号（键同 output.platform_roots）。渲染时原样传给 --font/--font-index；换字体必须经用户批准并写进 approved。",
+      "win32": {
+        "path": "C:/Windows/Fonts/msyhbd.ttc",
+        "index": 0,
+        "name": "微软雅黑粗体",
+        "approved": "既有生产字体"
+      },
+      "darwin": {
+        "path": "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        "index": 2,
+        "name": "冬青黑体 W6",
+        "approved": "2026-11-25 用户看过与微软雅黑粗体的同版式对比图后批准，作为 macOS 上的替代字体"
+      }
+    }
   },
   "cover": {
     "frame_overlay": "assets/references/cover-frame-lines-v3.png",

@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import re
+import sys
 import unicodedata
 from pathlib import Path
 
@@ -75,6 +76,20 @@ def config():
 
 def lock(cfg=None):
     return read_json(ROOT/(cfg or config())['layout']['active_lock_file'])
+
+
+# Operating-system keys shared with config output.platform_roots; anything else counts as linux.
+PLATFORM_KEYS = {'win32': 'win32', 'darwin': 'darwin'}
+
+
+def platform_key(name=None):
+    return PLATFORM_KEYS.get(name or sys.platform, 'linux')
+
+
+def approved_bold_font(name=None):
+    """The one bold font this OS may render with. Callers pass it to the renderer explicitly; nothing falls back."""
+    entry = config()['layout']['bold_font'][platform_key(name)]
+    return Path(entry['path']).expanduser(), int(entry['index'])
 
 
 def wav_info(path: Path) -> dict:
