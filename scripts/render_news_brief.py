@@ -29,6 +29,20 @@ ROOT = Path(__file__).resolve().parent.parent
 BLACK = (0, 0, 0, 255)
 
 
+def still_clock(fps, start_frame):
+    """Clock chain for a looped still used as an overlay: quarter-frame ticks, placed a quarter frame early.
+
+    The overlay filter shows, on each main frame, the newest overlay frame whose timestamp is not later than the
+    main frame's. A looped still enters on a 1/1000 s clock, so a shift of 59/30 s rounds up by 0.33 ms and the
+    first held caption frame lands one main-frame late: the caption vanished for the frame it should have landed
+    on (frame 59 of a brief_text video, frame 134 of the smoke test). Stamping the still exactly is not enough;
+    half a frame early is safe for the still but would play an image sequence one frame soon, so sequences keep
+    their exact stamps and only stills use this clock. The `enable` window on the main frame index decides exactly
+    which frames show the overlay.
+    """
+    return f'settb=expr=1/{fps*4},setpts=N/({fps}*TB)+{4*start_frame-1}/(4*{fps}*TB)'
+
+
 def run(cmd, timeout=240):
     p = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout)
     if p.returncode:
@@ -587,14 +601,15 @@ def main():
     parts.append(f'[0:v]trim=end_frame=1,setpts=PTS-STARTPTS[cov]')
     parts.append('[body][cov]overlay=0:0:eof_action=pass[cover]')
     inputs += ['-loop', '1', '-framerate', str(fps), '-i', str(directory/'header-overlay.png')]
-    parts.append(f'[{index}:v]trim=end_frame={total-1},setpts=PTS-STARTPTS+1/{fps}/TB[hdr]')
-    parts.append('[cover][hdr]overlay=0:0:eof_action=pass[v0]')
+    # The early clock plays a still one main-frame soon at its end too, so each still carries one spare frame.
+    parts.append(f'[{index}:v]trim=end_frame={total},{still_clock(fps, 1)}[hdr]')
+    parts.append(f'[cover][hdr]overlay=0:0:eof_action=pass:enable=\'gte(n,1)\'[v0]')
     stage, count, index = 'v0', 0, index+1
     for item in plan.get('overlays') or []:
         inputs += ['-loop', '1', '-framerate', str(fps), '-i', str(item['_layer'])]
         span = item['end_frame']-item['start_frame']
-        parts.append(f"[{index}:v]trim=end_frame={span},setpts=PTS-STARTPTS+{item['start_frame']}/{fps}/TB[ov{count}]")
-        parts.append(f'[{stage}][ov{count}]overlay=0:0:eof_action=pass[v{count+1}]')
+        parts.append(f"[{index}:v]trim=end_frame={span+1},{still_clock(fps, item['start_frame'])}[ov{count}]")
+        parts.append(f"[{stage}][ov{count}]overlay=0:0:eof_action=pass:enable='between(n,{item['start_frame']},{item['end_frame']-1})'[v{count+1}]")
         stage, count, index = f'v{count+1}', count+1, index+1
     slide = lock['body']['caption']['slide_frames']
     for unit in units:
@@ -605,7 +620,7 @@ def main():
         parts.append(f"[{stage}][ci{count}]overlay=0:0:eof_action=pass:enable='between(n,{begin},{arrival-1})'[v{count+1}]")
         stage, count, index = f'v{count+1}', count+1, index+1
         inputs += ['-loop', '1', '-framerate', str(fps), '-i', str(directory/f'caption-{tag}-hold.png')]
-        parts.append(f"[{index}:v]trim=end_frame={limit-arrival},setpts=PTS-STARTPTS+{arrival}/{fps}/TB[ch{count}]")
+        parts.append(f"[{index}:v]trim=end_frame={limit-arrival+1},{still_clock(fps, arrival)}[ch{count}]")
         parts.append(f"[{stage}][ch{count}]overlay=0:0:eof_action=pass:enable='between(n,{arrival},{limit-1})'[v{count+1}]")
         stage, count, index = f'v{count+1}', count+1, index+1
         if unit['exit'] is not None:

@@ -23,6 +23,7 @@ from PIL import Image
 
 SCRIPTS = Path(__file__).resolve().parent
 from production_contract import caption_arrival, fullchar_units, load_timeline, lock, reading_seconds, sha256
+from caption_continuity import caption_problems
 from synthetic_media import synthetic_clip, synthetic_cover
 
 if hasattr(sys.stdout, 'reconfigure'):
@@ -139,6 +140,9 @@ def render(name: str, plan: dict, work: Path, args) -> tuple[dict, Path]:
     report = json.loads((out/'render-report.json').read_text(encoding='utf-8'))
     if report['status'] != 'NEEDS_VISUAL_REVIEW':
         raise RuntimeError(f'render {name} ended as {report["status"]}')
+    continuity = caption_problems(args.ffmpeg or 'ffmpeg', out/'draft.mp4', report, plan)
+    if continuity:
+        raise RuntimeError(f'caption continuity in {name}: '+'; '.join(continuity))
     return plan, out
 
 

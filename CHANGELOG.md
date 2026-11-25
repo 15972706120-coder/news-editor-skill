@@ -3,6 +3,8 @@
 ## 2.1.1 — 2026-11-25
 
 - **修复纯图文成片无法进入最终验收**：`editorial_contract.py` 的 ready 阶段此前无条件要求时间轴里有视频片段（报 “timeline clips required”），而 `brief_text` 按设计没有片段，所以 2.0 以来任何纯图文条目都生成不了 `editorial-report.json`，也就无法用 `publish_news_output.ps1` 输出。现在 `brief_text` 只核对封面与已登记媒体的对应关系；`brief_video` 没有片段时仍然拒绝。这是 macOS 上第一次跑真实成片（火车车次调整，纯图文）时暴露的，Windows 上同样存在。新增两个回归测试。
+- **修复字幕在到位帧消失一帧**：`render_news_brief.py` 用循环单张图片做字幕定格层、标题层和评论浮层，这些图层的时间戳比主画面晚几十微秒，到位那一帧整行（视频形态是整块）字幕不显示，下一帧才出现。2.0 以来两种形态都有（13 秒纯图文的第 59 帧、冒烟成片的第 134 帧）；机器验收只数帧，分板取的是到位之后的帧，所以一直没被发现，由 macOS 上第一条真实成片的独立逐帧质检暴露。现在循环单图放在提前四分之一帧的时钟上并多带一帧余量，显示范围仍由按帧号的 `enable` 窗口决定；滑入、退出的图像序列保持精确时间戳。
+- **新增字幕连续性检查**：`scripts/caption_continuity.py` 逐帧核对每个字幕在到位帧完整、保持到退场、片尾最后一帧仍在。冒烟测试和版式参考图脚本都会运行它，任一处空白即失败。`validate_news_video.py` 的机器验收不含这项（不引入逐帧解码），最终成片可用 `python scripts/caption_continuity.py <MP4> --render-report <render-report.json> --timeline <timeline.json>` 核对。
 - **记录已知限制**：内置 `bgm-03.mp3` 的前 14 秒峰值与响度之比过大，线性混音下响度到 -12.5 LUFS 时真峰值 +0.47 dBTP，压到峰值合规时响度只剩约 -16.1 LUFS，`bgm_only` 模式会报 `BLOCKED_AUDIO`；`bgm-01`、`bgm-02` 实测可通过（约 -13.2、-13.4 LUFS，-1.7 dBTP）。已写入制作配置的已知限制。
 
 ## 2.1.0 — 2026-11-25
