@@ -386,6 +386,11 @@ def main(argv: list[str] | None = None) -> int:
                             "mp4" in data.get("format", {}).get("format_name", "").split(",") and source.suffix.lower() == ".mp4"))
         checks.append(check("timeline_caption_block_intervals", len(timeline["caption_blocks"]),
                             "contiguous [1,total_frames) coverage", True))
+        # Players and platforms convert by these tags: a file tagged BT.2020 or left untagged is re-rendered in
+        # the wrong colours after upload. The renderer writes BT.709 and keeps every clip BT.709.
+        tags = (video.get("color_space"), video.get("color_transfer"), video.get("color_primaries"))
+        checks.append(check("color_tags", "/".join(str(tag) for tag in tags), "bt709/bt709/bt709",
+                            tags == ("bt709", "bt709", "bt709")))
         if any(clip.get("media_type") in ("image", "screenshot") for clip in timeline.get("clips") or []):
             actual_supersample = (render_report or {}).get("still_motion_supersample")
             checks.append(check(

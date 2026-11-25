@@ -17,7 +17,8 @@ from production_contract import (load_timeline, sha256, text_hash, body_geometry
                                  approved_bold_font, platform_key)
 from mix_timeline_audio import prominent_units
 from validate_news_video import timestamp_checks, validate_timeline_schema, automatic_qa_frames, main as validate_main
-from render_news_brief import geometry, still_motion_filter, draw_text, text_layer, shear, fitted, slide_frames, ease_out
+from render_news_brief import (geometry, still_motion_filter, draw_text, text_layer, shear, fitted, slide_frames, ease_out,
+                               colour_chain)
 from smoke_test_brief_pipeline import stage_tools
 from PIL import Image, ImageFont
 import minimax_tts
@@ -562,6 +563,32 @@ class ApprovedBoldFontTests(unittest.TestCase):
         if 'linux' not in config()['layout']['bold_font']:
             with self.assertRaises(KeyError):
                 approved_bold_font('sunos5')
+
+
+class ColourChainTests(unittest.TestCase):
+    """The brief is tagged BT.709, so the renderer only takes a clip it can show in BT.709."""
+
+    def test_hdr_sources_are_refused(self):
+        # An HLG train video read as SDR once shipped grey and half as saturated, tagged BT.2020.
+        for info in ({'color_transfer': 'arib-std-b67', 'color_primaries': 'bt2020', 'color_space': 'bt2020nc'},
+                     {'color_transfer': 'smpte2084', 'color_primaries': 'bt2020nc', 'color_space': 'bt2020nc'},
+                     {'color_transfer': None, 'color_primaries': 'bt2020nc', 'color_space': 'bt709'}):
+            with self.assertRaises(ValueError):
+                colour_chain(info)
+
+    def test_standard_definition_matrix_is_converted_to_bt709(self):
+        chain = colour_chain({'color_transfer': 'smpte170m', 'color_primaries': 'smpte170m', 'color_space': 'smpte170m',
+                              'pix_fmt': 'yuv420p', 'color_range': 'tv'})
+        self.assertIn('ispace=smpte170m:itrc=smpte170m', chain)
+        self.assertTrue(chain.endswith('space=bt709:trc=bt709:primaries=bt709:range=tv'))
+        chain = colour_chain({'color_transfer': None, 'color_primaries': None, 'color_space': 'bt470bg', 'pix_fmt': 'yuv420p'})
+        self.assertIn('ispace=bt470bg:itrc=bt709', chain)
+
+    def test_bt709_or_untagged_sources_pass_through(self):
+        for info in ({'color_transfer': 'bt709', 'color_primaries': 'bt709', 'color_space': 'bt709', 'pix_fmt': 'yuv420p'},
+                     {'color_space': 'unknown', 'pix_fmt': 'yuv420p'},
+                     {'color_space': 'bt470bg', 'pix_fmt': 'yuvj420p', 'color_range': 'pc'}):
+            self.assertEqual(colour_chain(info), '')
 
 
 if __name__ == '__main__':

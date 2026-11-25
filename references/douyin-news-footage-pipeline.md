@@ -685,7 +685,7 @@ attrib +R $downloadedFile
 ```powershell
 & $ffprobe `
   -v error `
-  -show_entries 'format=duration,size:stream=index,codec_type,codec_name,width,height,r_frame_rate,avg_frame_rate,sample_rate,channels:stream_tags=rotate' `
+  -show_entries 'format=duration,size:stream=index,codec_type,codec_name,width,height,r_frame_rate,avg_frame_rate,sample_rate,channels,pix_fmt,color_range,color_space,color_transfer,color_primaries:stream_tags=rotate' `
   -of json `
   $downloadedFile
 ```
@@ -697,7 +697,10 @@ attrib +R $downloadedFile
 - 宽高和旋转标记合理；
 - 帧率不是明显异常值；
 - 文件大小不是 0 或远低于预期；
-- 音频轨是否存在并记录，不能假设所有素材都有声音。
+- 音频轨是否存在并记录，不能假设所有素材都有声音；
+- 色彩标记：`color_transfer` 是 `arib-std-b67`（HLG）或 `smpte2084`（PQ）、`color_primaries` 是 `bt2020` 的素材是 HDR；`color_space` 是 `bt470bg` / `smpte170m` 的是 BT.601（维基共享资源等图库的视频里常见）。
+
+色彩标记不对，画面会悄悄走样。渲染器不做色调映射：HDR 素材当 SDR 读会发灰、饱和度只剩一半，成片的色彩标记还会跟着变成 BT.2020，平台转码后进一步偏色。所以进时间轴之前先把每段素材规范成 **SDR、BT.709、有限范围**（与像素比例、帧率的规范化是同一步）：HLG/PQ 素材用线性光加高光压缩再编码到 BT.709（例如 `zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv`；不要只换色彩空间，整帧会过曝），BT.601 素材转 BT.709 矩阵，编码时写明 `-color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv`。渲染器遇到 HDR 素材会直接拒绝；BT.601 且 8 位 4:2:0 的素材会在渲染链里自动转成 BT.709。成片必须带 `bt709/bt709/bt709` 标记，机器验收会核对这一项。
 
 ### 11.2 完整解码检查
 

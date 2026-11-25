@@ -76,6 +76,29 @@ def geometry(crop, target):
     return math.ceil(w*scale), math.ceil(h*scale)
 
 
+HDR_TRANSFERS = ('arib-std-b67', 'smpte2084')
+SDR_601_MATRICES = {'bt470bg', 'smpte170m', 'bt601', 'bt470bm'}
+
+
+def colour_chain(info: dict) -> str:
+    """Filters that make one video clip BT.709; empty when nothing has to be done.
+
+    The encoder copies the first video input's colour tags onto the output and converts nothing. An HLG clip
+    read as SDR therefore renders grey and half as saturated (measured on a Wikimedia Commons train video),
+    and a BT.601 clip decoded as BT.709 shifts its colours. The output is tagged BT.709 below, so every clip
+    has to be BT.709: standard-definition-matrix video is converted here, an untagged clip is read as BT.709
+    (the HD convention), and HDR video is refused because a tone-map is an editorial choice.
+    """
+    transfer, primaries, matrix = info.get('color_transfer'), info.get('color_primaries'), info.get('color_space')
+    require(transfer not in HDR_TRANSFERS and not str(primaries).startswith('bt2020'),
+            'HDR source: tone-map it to SDR BT.709 explicitly before rendering')
+    if (matrix in SDR_601_MATRICES and info.get('pix_fmt') in ('yuv420p', 'yuv422p', 'yuv444p')
+            and info.get('color_range') in (None, 'tv', 'unknown')):
+        trc = transfer if transfer in ('bt709', 'bt470bg', 'smpte170m') else 'bt709'
+        return f'colorspace=ispace={matrix}:itrc={trc}:iprimaries=bt709:irange=tv:space=bt709:trc=bt709:primaries=bt709:range=tv'
+    return ''
+
+
 def still_motion_filter(motion, frames, fps, width, height, supersample):
     """Deterministic linear Ken Burns motion in normalized anchor coordinates.
 
@@ -555,6 +578,7 @@ def main():
         if clip['media_type'] == 'video':
             require(info.get('sample_aspect_ratio', '1:1') in ('1:1', 'N/A'), 'Normalize non-square pixels explicitly first')
             require(not any(x.get('rotation', 0) for x in info.get('side_data_list', [])), 'Normalize rotated source explicitly first')
+            colour = colour_chain(info)
             require(clip['source_in_seconds']+frames/fps <= float(info['duration'])+1/fps, 'Source cannot cover selected interval')
             inputs += ['-ss', str(clip['source_in_seconds']), '-i', str(src)]
         else:
@@ -567,7 +591,7 @@ def main():
             # tpad only covers sub-frame loss of the frame-rate conversion at the tail (never real short footage,
             # which the contract rejects); trim then yields exactly the planned frame count.
             source_chain = (f'[{index}:v]fps={fps},tpad=stop_mode=clone:stop={frames},trim=end_frame={frames},'
-                            f'setpts=N/({fps}*TB),setsar=1')
+                            f'setpts=N/({fps}*TB),setsar=1'+(f',{colour}' if colour else ''))
         else:
             source_chain = f'[{index}:v]trim=end_frame=1'
         parts.append(source_chain+f',split=2[full{n}][src{n}]')
@@ -645,7 +669,10 @@ def main():
     # The trailing fps filter stamps a real duration on every frame. Without it the last frame has duration 0,
     # MP4 records the media length as the last frame's start time, and the edit list then discards that frame
     # whenever the total lands on a whole millisecond boundary (e.g. 10.9 s).
-    parts.append(f'[{stage}]setpts=N/({fps}*TB),trim=end_frame={total},format=yuv420p,fps={fps}[out]')
+    # The colour tags live on the frames: encoder options alone are overridden by whatever the filter graph
+    # output carries (an untagged clip leaves them unknown), so they are written here as frame properties.
+    parts.append(f'[{stage}]setpts=N/({fps}*TB),trim=end_frame={total},format=yuv420p,fps={fps},'
+                 f'setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv[out]')
     graph = ';'.join(parts)
     (directory/'render-filter.txt').write_text(graph, encoding='utf-8')
     output = directory/('INTERNAL-DRAFT.mp4' if args.diagnostic else 'draft.mp4')
@@ -666,7 +693,11 @@ def main():
         started_encode = time.perf_counter()
         command = [ff, '-hide_banner', '-loglevel', 'error', '-y', *inputs, '-filter_complex_threads', '2',
                   '-filter_complex', graph, '-map', '[out]', '-an', '-c:v', 'libx264', '-preset', 'fast', '-crf', '18',
-                  '-threads', '4', '-pix_fmt', config['video']['pixel_format'], '-fps_mode', 'passthrough',
+                  '-threads', '4', '-pix_fmt', config['video']['pixel_format'],
+                  # Every clip is BT.709 by now (see colour_chain); without explicit tags the file inherits
+                  # whichever colour metadata the first input carried.
+                  '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-color_range', 'tv',
+                  '-fps_mode', 'passthrough',
                   '-movflags', '+faststart', str(output)]
         (directory/'render-command.json').write_text(json.dumps(command, ensure_ascii=False, indent=1), encoding='utf-8')
         run_loud(command, timeout=1800)
