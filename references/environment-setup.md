@@ -1,6 +1,6 @@
 # News-Editor 新电脑环境与依赖安装手册
 
-> 渲染适配：资讯快讯使用随包 `render_news_brief.py`（Python/Pillow + FFmpeg，见 [可执行制作链路](executable-production.md)），不需要 Remotion 工程。`python scripts/smoke_test_brief_pipeline.py --font <微软雅黑粗体>` 可验证本机渲染、混音、封装、校验与分板的接线。下文 Remotion/Chrome/npm 渲染要求只服务于仍选择 Remotion 的旧项目；浏览器检索自身的依赖仍保留。
+> 渲染适配：资讯快讯使用随包 `render_news_brief.py`（Python/Pillow + FFmpeg，见 [可执行制作链路](executable-production.md)），不需要 Remotion 工程。`python scripts/smoke_test_brief_pipeline.py` 可验证本机渲染、混音、封装、校验与分板的接线。下文 Remotion/Chrome/npm 渲染要求只服务于仍选择 Remotion 的旧项目；浏览器检索自身的依赖仍保留。
 
 > 配音是可选模式：默认成片是 BGM 加字幕，不需要任何语音凭据；只有用户要求配音时才使用 MiniMax T2A API（见 [MiniMax TTS 集成](minimax-tts.md)）。Edge TTS 已弃用，`check_environment.ps1` 中的 edge-tts 检查仅为旧项目兼容。
 
@@ -19,7 +19,7 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
 | CLI / Python 包 | `agent-browser`、`yt-dlp` | 抖音检索、视频下载 | 全局 npm 或 Python 环境 |
 | 语音 API（可选） | MiniMax T2A（`scripts/minimax_tts.py`） | 仅用户要求配音时 | 环境变量凭据，按停点检查 |
 | 原生媒体工具 | FFmpeg、FFprobe、Chrome/Chromium | 转码、混音、抽帧、媒体探测、网页登录和渲染 | 系统 PATH 或显式路径 |
-| 项目依赖与资源 | Remotion、React、TypeScript、微软雅黑、BGM 和参考资产 | 版式、时间轴、渲染、中文排版和声音 | 每个项目及 Skill 包 |
+| 项目依赖与资源 | Remotion、React、TypeScript、已批准的粗体字体、BGM 和参考资产 | 版式、时间轴、渲染、中文排版和声音 | 每个项目及 Skill 包 |
 
 `agents/openai.yaml` 当前只能声明 MCP 工具，不能可靠声明 npm、Python、FFmpeg 或字体依赖。因此，本文件和 `scripts/check_environment.ps1` 是 News-Editor 的环境事实来源。
 
@@ -90,7 +90,7 @@ News-Editor 依赖分为五层，迁移时必须分别检查：
   ↓
 安装 agent-browser / Remotion Skills
   ↓
-确认微软雅黑与 Skill 内置资产
+确认已批准的字体与 Skill 内置资产
   ↓
 为 Remotion 项目执行 npm ci 或创建新项目
   ↓
