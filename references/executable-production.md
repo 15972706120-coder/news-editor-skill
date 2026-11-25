@@ -78,7 +78,7 @@ python scripts/minimax_tts.py --text-file <block.txt> --page-id <block-id> --out
 
 - 每段素材经帧率转换后用尾帧克隆补足并裁到计划帧数，只覆盖转换损失的 1–2 帧；真实不足的素材由时间轴检查在渲染前拒绝。
 - 所有叠加层都是只在自己帧区间存在的有限流，不使用无限循环图层，因此叠加不会改变主画面的帧数。
-- 循环单图图层（标题层、字幕定格层、评论浮层）放在提前四分之一帧的时钟上并多带一帧余量，显示范围只由按帧号的 `enable` 窗口决定；滑入和退出的图像序列保持精确时间戳。字幕在到位帧必须完整，机器验收不逐帧看画面，用 `python scripts/caption_continuity.py <MP4> --render-report <render-report.json> --timeline <timeline.json>` 核对。
+- 所有叠加图层（标题层、字幕定格层、评论浮层，以及滑入、退出的图像序列）都放在提前四分之一帧的时钟上并多带一帧余量，显示范围只由按帧号的 `enable` 窗口决定。图像序列不加余量时，末帧会在它对应的主画面帧到来之前被流的结束信号清掉。字幕在到位帧必须完整、滑入逐帧推进，机器验收不逐帧看画面，用 `python scripts/caption_continuity.py <MP4> --render-report <render-report.json> --timeline <timeline.json>` 核对（默认到渲染报告所在目录找滑入图片，可用 `--render-dir` 另指）。
 - 链尾以帧率滤镜为每帧写入真实时长。否则末帧时长为 0，MP4 会把媒体长度记成末帧起点，总时长落在整毫秒边界时编辑列表会把末帧标成丢弃。
 
 ## 4. 封面与文字的对齐防线

@@ -30,17 +30,28 @@ BLACK = (0, 0, 0, 255)
 
 
 def still_clock(fps, start_frame):
-    """Clock chain for a looped still used as an overlay: quarter-frame ticks, placed a quarter frame early.
+    """Clock chain for an overlay layer: quarter-frame ticks, placed a quarter frame early.
 
-    The overlay filter shows, on each main frame, the newest overlay frame whose timestamp is not later than the
-    main frame's. A looped still enters on a 1/1000 s clock, so a shift of 59/30 s rounds up by 0.33 ms and the
-    first held caption frame lands one main-frame late: the caption vanished for the frame it should have landed
-    on (frame 59 of a brief_text video, frame 134 of the smoke test). Stamping the still exactly is not enough;
-    half a frame early is safe for the still but would play an image sequence one frame soon, so sequences keep
-    their exact stamps and only stills use this clock. The `enable` window on the main frame index decides exactly
-    which frames show the overlay.
+    Frame sync advances every input to the next timestamp and keeps only each input's current frame, so the
+    overlay filter shows, on each main frame, the newest overlay frame whose timestamp is not later than the
+    main frame's. Through a chain of overlays the main stream's timestamps sit a few sub-frame ticks either side
+    of the exact frame grid, so a layer stamped exactly lands one main frame late or loses a frame:
+    a looped still enters on a 1/1000 s clock, so a shift of 59/30 s rounds up by 0.33 ms and the first held
+    caption frame vanished on the frame it should have landed on (frame 59 of a brief_text video, frame 134 of
+    the smoke test); a six-frame slide stamped exactly showed only three of its six states, some twice (measured
+    on macOS with FFmpeg 7.1). A quarter frame early clears the drift in both directions.
+
+    A finite layer must also outlive its window by a frame (`sequence_clock`): once frame sync has read its
+    last frame, the end-of-stream signal replaces that frame with nothing one tick later, which can run ahead
+    of the main frame the layer was meant for. The `enable` window on the main frame index decides exactly
+    which frames show the layer, so the early clock and the spare frame never show an extra frame.
     """
     return f'settb=expr=1/{fps*4},setpts=N/({fps}*TB)+{4*start_frame-1}/(4*{fps}*TB)'
+
+
+def sequence_clock(fps, start_frame):
+    """An image sequence on the overlay clock, padded with one clone of its last frame (see `still_clock`)."""
+    return f'{still_clock(fps, start_frame)},tpad=stop_mode=clone:stop=1'
 
 
 def run(cmd, timeout=240):
@@ -616,7 +627,7 @@ def main():
         tag = unit['tag']
         begin, arrival, limit = unit['begin'], unit['arrival'], unit['exit'] if unit['exit'] is not None else total
         inputs += ['-framerate', str(fps), '-i', str(directory/f'caption-{tag}-in-%02d.png')]
-        parts.append(f"[{index}:v]format=rgba,setpts=PTS-STARTPTS+{begin}/{fps}/TB[ci{count}]")
+        parts.append(f"[{index}:v]format=rgba,{sequence_clock(fps, begin)}[ci{count}]")
         parts.append(f"[{stage}][ci{count}]overlay=0:0:eof_action=pass:enable='between(n,{begin},{arrival-1})'[v{count+1}]")
         stage, count, index = f'v{count+1}', count+1, index+1
         inputs += ['-loop', '1', '-framerate', str(fps), '-i', str(directory/f'caption-{tag}-hold.png')]
@@ -625,7 +636,7 @@ def main():
         stage, count, index = f'v{count+1}', count+1, index+1
         if unit['exit'] is not None:
             inputs += ['-framerate', str(fps), '-i', str(directory/f'caption-{tag}-out-%02d.png')]
-            parts.append(f"[{index}:v]format=rgba,setpts=PTS-STARTPTS+{unit['exit']}/{fps}/TB[co{count}]")
+            parts.append(f"[{index}:v]format=rgba,{sequence_clock(fps, unit['exit'])}[co{count}]")
             parts.append(f"[{stage}][co{count}]overlay=0:0:eof_action=pass:"
                          f"enable='between(n,{unit['exit']},{unit['exit']+slide-1})'[v{count+1}]")
             stage, count, index = f'v{count+1}', count+1, index+1

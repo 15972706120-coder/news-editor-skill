@@ -137,11 +137,12 @@ def main() -> int:
         stage('validate_news_video.py', [str(render/'candidate.mp4'), '--timeline', str(timeline),
                                          '--assembly-report', str(render/'assembly.json'), '--qa-dir', str(render/'qa'),
                                          '--qa-frames', 'auto', '--report', str(render/'qa.json')], tools)
-        # Every caption must be whole on its landing frame and stay: the frame count and the layout proof
-        # cannot see a caption that is missing for one frame.
+        # Every caption must be whole on its landing frame, stay until it leaves and show each of its slide-in
+        # states in turn: the frame count and the layout proof cannot see a caption that is missing for one
+        # frame or an animation that repeats a state and drops the next.
         continuity = caption_problems(args.ffmpeg or 'ffmpeg', render/'candidate.mp4',
                                        json.loads((render/'render-report.json').read_text(encoding='utf-8')),
-                                       json.loads(timeline.read_text(encoding='utf-8')))
+                                       json.loads(timeline.read_text(encoding='utf-8')), render)
         if continuity:
             raise RuntimeError('caption continuity: '+'; '.join(continuity))
         stage('extract_layout_proof.py', [str(render/'candidate.mp4'), '--timeline', str(timeline), '--qa-report', str(render/'qa.json'),
