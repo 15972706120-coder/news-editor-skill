@@ -220,11 +220,15 @@ jobs:
         run: |
           "::notice::SHEET-START (step script parsed)"
           @'
-          import subprocess, sys, traceback
+          import json, subprocess, sys, traceback
           from pathlib import Path
           from PIL import Image, ImageDraw
           try:
-              work = Path(sys.argv[1]) / "smoke"
+              # The smoke step leaves its JSON summary in smoke.log; take the work dir from
+              # there instead of guessing how the smoke script laid out --work-dir.
+              log = Path(sys.argv[1]) / "smoke.log"
+              state = next(json.loads(line) for line in reversed(log.read_text(encoding="utf-8-sig").splitlines()) if line.startswith("{"))
+              work = Path(state["work_dir"])
               src = work / "render" / "candidate.mp4"
               print("src", src, "exists", src.exists())
               w, h = 270, 480
@@ -262,11 +266,17 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
+          # This host is not a production machine, so required failures here are expected;
+          # what matters is that they are all "tool not installed here", so the FAIL rows
+          # are listed in full and the whole log goes to the evidence branch.
           $out = pwsh -NoProfile -File scripts/check_environment.ps1 2>&1
           $code = $LASTEXITCODE
-          $tail = (($out | Select-Object -Last 10) -join ' | ') -replace '%', '%25'
-          if ($tail.Length -gt 2500) { $tail = $tail.Substring($tail.Length - 2500) }
-          "::notice::ENVIRONMENT check_environment exit=$code :: $tail"
+          $out | Out-File -FilePath (Join-Path $env:RUNNER_TEMP 'check_environment.log') -Encoding utf8
+          $summary = (($out | Where-Object { "$_" -like 'News-Editor ready*' } | Select-Object -Last 1) -join ' ').Trim()
+          $fails = ($out | Where-Object { "$_" -match '^\s*FAIL\b' } | ForEach-Object { "$_".Trim() -replace '\s+', ' ' }) -join ' | '
+          if ($fails.Length -gt 3500) { $fails = $fails.Substring(0, 3500) + '...' }
+          $msg = "ENVIRONMENT check_environment exit=$code :: $summary :: FAIL rows on this host: $fails"
+          "::notice::$($msg -replace '%', '%25')"
 
       - name: Publish evidence
         if: always()
