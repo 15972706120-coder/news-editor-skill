@@ -51,7 +51,7 @@ python <SkillRoot>/scripts/editorial_contract.py check --stage feasible --packag
 python <SkillRoot>/scripts/editorial_contract.py check --stage ready --package <work/editorial.json> --timeline <work/timeline.json> --video <work/final.mp4> --cover <work/封面.png> --report <work/editorial-report.json>
 ```
 
-输出报告绑定事实包、时间轴、当前MP4和独立封面哈希。它只证明记录完备及文件身份，**不证明来源真实、实际看过/听过或已获用户授权**。事实/媒体/文案变化使旧报告失效；重新核受影响项并重建报告。独立QA和原有机器/视听门继续执行。
+输出报告绑定事实包、时间轴、当前MP4和独立封面哈希。`brief_video` 的每个片段都必须对应已登记的媒体记录；`brief_text` 没有片段，只核对封面。它只证明记录完备及文件身份，**不证明来源真实、实际看过/听过或已获用户授权**。事实/媒体/文案变化使旧报告失效；重新核受影响项并重建报告。独立QA和原有机器/视听门继续执行。
 
 ## 3. 跨日持久台账
 

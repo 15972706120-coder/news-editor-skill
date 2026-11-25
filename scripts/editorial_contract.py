@@ -200,7 +200,8 @@ def validate_package(package, base, stage='facts', timeline=None):
     for clip in timeline.get('clips', []):
         path = resolve(timeline_base, clip.get('path'))
         require(path in media_by_path and clip.get('source_sha256') == media_by_path[path]['sha256'], 'timeline clip lacks reviewed media identity')
-    require(bool(timeline.get('clips')), 'timeline clips required')
+    # brief_text carries no footage by design; a brief_video must bind at least one reviewed clip.
+    require(timeline.get('format') == 'brief_text' or bool(timeline.get('clips')), 'timeline clips required')
     cover_path = resolve(timeline_base, cover.get('path'))
     require(cover_path in media_by_path and cover.get('source_sha256') == media_by_path[cover_path]['sha256'], 'cover lacks reviewed media identity')
 

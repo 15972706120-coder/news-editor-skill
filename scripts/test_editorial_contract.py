@@ -45,6 +45,15 @@ class EditorialContractTests(unittest.TestCase):
         self.assertIn('Record completeness',r['scope'])
         self.assertEqual(verify(self.report,self.video,self.cover,'亲子座位','暂无法保障')['status'],'EDITORIAL_BINDING_VERIFIED')
 
+    def test_text_only_timeline_needs_no_clips(self):
+        # 2.1.1: a brief_text timeline has no footage by design; the ready stage binds its cover only.
+        self.t['format']='brief_text';self.t.pop('clips');self.ready()
+        self.assertEqual(verify(self.report,self.video,self.cover,'亲子座位','暂无法保障')['status'],'EDITORIAL_BINDING_VERIFIED')
+
+    def test_video_timeline_without_clips_is_rejected(self):
+        self.t['format']='brief_video';self.t.pop('clips');self.save()
+        with self.assertRaisesRegex(ValueError,'timeline clips required'):check(self.package,'ready',self.timeline,self.video,self.cover)
+
     def test_report_cannot_overwrite_source_media_or_hardlink_alias(self):
         r=self.ready();before=self.source.read_bytes()
         with self.assertRaisesRegex(ValueError,'overwrite'):write_report(self.source,r)
