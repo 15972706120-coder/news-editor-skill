@@ -6,7 +6,7 @@
 
 按账号实测的题材优先级筛选热点、核验事实、下载可追溯素材，套用锁定的“标题块＋实拍带＋滑入字幕”版式，以 BGM＋字幕产出 9–15 秒竖屏成片，验收后发布。
 
-[![Version](https://img.shields.io/badge/version-2.0.1-00DCE6?style=flat-square)](VERSION)
+[![Version](https://img.shields.io/badge/version-2.0.2-00DCE6?style=flat-square)](VERSION)
 ![Status](https://img.shields.io/badge/status-active-2EA44F?style=flat-square)
 ![Canvas](https://img.shields.io/badge/canvas-1080%C3%971920-FFD400?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?style=flat-square)

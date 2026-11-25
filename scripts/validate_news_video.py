@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -38,6 +39,13 @@ def locate(explicit: str | None, name: str) -> str:
             raise FileNotFoundError(f"{name} not found: {path}")
         return str(path)
     found = shutil.which(name)
+    if not found and os.name == "nt":
+        # shutil.which only tries PATHEXT extensions; without PATHEXT it skips .exe tools that
+        # every other stage resolves fine, so retry the native Windows extensions explicitly.
+        for extension in (".exe", ".cmd", ".bat"):
+            found = shutil.which(name + extension)
+            if found:
+                break
     if not found:
         raise FileNotFoundError(f"{name} is not on PATH; pass --{name}")
     return found

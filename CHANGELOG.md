@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.2 — 2026-11-25
+
+- **工具查找不再依赖 PATHEXT**：`validate_news_video.py` 与 `extract_layout_proof.py` 用 `shutil.which` 查找 ffmpeg/ffprobe 时只会尝试系统变量 PATHEXT 里的扩展名；该变量缺失的环境里会报 “ffprobe not found”，而同一台机器上渲染、混音等直接调用的阶段都正常。现在 Windows 上找不到时再按 `.exe`、`.cmd`、`.bat` 显式补查。起因：GitHub 的 Windows 主机上冒烟测试的渲染、混音、封装全部成功，唯独校验步骤找不到 ffprobe。
+
 ## 2.0.1 — 2026-11-25
 
 - **修复 Windows 编码问题**：`test_performance_review.py` 读取结果文件时未指定编码，在非中文系统的 Windows 上按本地代码页解码 UTF-8 中文会直接报错（中文系统上只是侥幸通过）；现显式按 UTF-8 读取。`render_news_brief.py` 与 `smoke_test_brief_pipeline.py` 的标准输出改为显式 UTF-8，重定向到文件时不再依赖控制台代码页。
