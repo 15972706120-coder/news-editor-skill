@@ -5,7 +5,7 @@ name: Windows smoke
 # main, which runs the OLD script's post-update validation for real. Afterwards the 2.x gates
 # and the brief pipeline run. Nothing here changes main or touches a production machine.
 # Diagnostics go to annotations and evidence is pushed to a scratch branch, so the result can
-# be inspected without signing in.
+# be inspected without signing in (the workflow token cannot post commit statuses).
 
 on:
   push:
@@ -15,7 +15,6 @@ on:
 
 permissions:
   contents: write
-  statuses: write
 
 env:
   UPGRADE_FROM: 6fb1d3bc3bfeb74fdaa813200ba18223903a7dbd
@@ -244,31 +243,6 @@ jobs:
           $tail = (($out | Select-Object -Last 10) -join ' | ') -replace '%', '%25'
           if ($tail.Length -gt 2500) { $tail = $tail.Substring($tail.Length - 2500) }
           "::notice::ENVIRONMENT check_environment exit=$code :: $tail"
-
-      - name: Publish summary as a commit status
-        if: always()
-        shell: pwsh
-        env:
-          SYNTAX: ${{ steps.syntax.outcome }}
-          UPGRADE: ${{ steps.upgrade.outcome }}
-          CONSISTENCY: ${{ steps.consistency.outcome }}
-          TESTS: ${{ steps.tests.outcome }}
-          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
-        run: |
-          $ok = @($env:SYNTAX, $env:UPGRADE, $env:CONSISTENCY, $env:TESTS, $env:SMOKE_OUTCOME | Where-Object { $_ -ne 'success' }).Count -eq 0
-          $state = if ($ok) { 'success' } else { 'failure' }
-          $ff = ($env:FF -replace '^ffmpeg version ', '') -replace ' .*$', ''
-          $summary = "gate=$env:GATE1>$env:GATE2 | $env:SMOKE | ff=$ff | syntax=$env:SYNTAX tests=$env:TESTS consistency=$env:CONSISTENCY"
-          if ($summary.Length -gt 250) { $summary = $summary.Substring(0, 250) }
-          try {
-            $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
-            $body = @{ state = $state; context = 'Windows smoke'; description = $summary } | ConvertTo-Json
-            Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.SHA }}" -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $body | Out-Null
-            "::notice::STATUS posted: $state $summary"
-          } catch {
-            $msg = (("$($_.Exception.GetType().Name): $($_.Exception.Message)" -replace "`r?`n", ' | ') -replace '%', '%25')
-            "::warning title=Commit status not posted::$msg | intended: $state $summary"
-          }
 
       - name: Publish evidence
         if: always()
