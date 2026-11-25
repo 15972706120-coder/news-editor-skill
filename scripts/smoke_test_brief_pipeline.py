@@ -33,6 +33,19 @@ CLIPS = [(1, 94, 0.04, 3.12), (94, 204, 3.16, 3.68), (204, 303, 6.84, 3.32), (30
 NOTE = '视频资料与新闻事件无关'
 
 
+def stage_tools(ffmpeg: str | None, ffprobe: str | None, font: Path, font_index: int) -> dict:
+    """Extra arguments per stage. A tool is forwarded only when the caller gave it explicitly.
+
+    validate/proof treat a forwarded value as a file path, so a bare default name such as
+    "ffprobe" would fail there; unset tools are resolved from PATH by each stage itself.
+    """
+    media = ['--ffmpeg', ffmpeg] if ffmpeg else []
+    probing = media + (['--ffprobe', ffprobe] if ffprobe else [])
+    return {'production_contract': [], 'render_news_brief': ['--font', str(font), '--font-index', str(font_index), *probing],
+            'mix_timeline_audio': media, 'assemble_news_video': media, 'validate_news_video': probing,
+            'extract_layout_proof': probing}
+
+
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(command, capture_output=True, text=True, encoding='utf-8', errors='replace')
     if result.returncode:
@@ -87,8 +100,10 @@ def build_timeline(work: Path, ffmpeg: str, fps: int) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--ffmpeg", default="ffmpeg")
-    parser.add_argument("--ffprobe", default="ffprobe")
+    # Left unset, each stage resolves the tool from PATH itself; a forwarded name would be
+    # treated by validate/proof as an explicit file path and fail with "ffprobe not found".
+    parser.add_argument("--ffmpeg")
+    parser.add_argument("--ffprobe")
     parser.add_argument("--font", type=Path, default=Path("C:/Windows/Fonts/msyhbd.ttc"))
     parser.add_argument("--font-index", type=int, default=0)
     parser.add_argument("--work-dir", type=Path, help="defaults to a fresh temporary directory")
@@ -97,15 +112,11 @@ def main() -> int:
     if not SAMPLE.is_file() or not args.font.is_file():
         print(json.dumps({"status": "SMOKE_SKIPPED", "reason": "bundled sample or font missing"}))
         return 0
-    media = ['--ffmpeg', args.ffmpeg]
-    probing = ['--ffmpeg', args.ffmpeg, '--ffprobe', args.ffprobe]
-    tools = {'production_contract': [], 'render_news_brief': ['--font', str(args.font), '--font-index', str(args.font_index), *probing],
-             'mix_timeline_audio': media, 'assemble_news_video': media, 'validate_news_video': probing,
-             'extract_layout_proof': probing}
+    tools = stage_tools(args.ffmpeg, args.ffprobe, args.font, args.font_index)
     work = (args.work_dir or Path(tempfile.mkdtemp(prefix='news-editor-smoke-')))/'smoke'
     work.mkdir(parents=True, exist_ok=True)
     try:
-        timeline = build_timeline(work, args.ffmpeg, 30)
+        timeline = build_timeline(work, args.ffmpeg or 'ffmpeg', 30)
         stage('production_contract.py', [str(timeline)], tools)
         render = work/'render'
         stage('render_news_brief.py', ['--timeline', str(timeline), '--out-dir', str(render), '--render', '--diagnostic'], tools)

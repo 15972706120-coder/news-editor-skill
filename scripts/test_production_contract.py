@@ -17,6 +17,7 @@ from production_contract import (load_timeline, sha256, text_hash, body_geometry
 from mix_timeline_audio import prominent_units
 from validate_news_video import timestamp_checks, validate_timeline_schema, automatic_qa_frames, main as validate_main
 from render_news_brief import geometry, still_motion_filter, draw_text, text_layer, shear, fitted, slide_frames, ease_out
+from smoke_test_brief_pipeline import stage_tools
 from PIL import Image, ImageFont
 import minimax_tts
 
@@ -393,6 +394,20 @@ class BriefContractRegression(unittest.TestCase):
                 stream.write(b'corrupt')
             minimax_tts.main()
             self.assertEqual(api.call_count, 3)
+
+
+class SmokeTestForwarding(unittest.TestCase):
+    def test_tools_are_forwarded_only_when_given_explicitly(self):
+        bare = stage_tools(None, None, Path('bold.ttc'), 0)
+        for stage in ('validate_news_video', 'extract_layout_proof', 'mix_timeline_audio'):
+            self.assertNotIn('--ffprobe', bare[stage], 'a bare name would be read as a file path')
+            self.assertNotIn('--ffmpeg', bare[stage])
+        self.assertIn('--font', bare['render_news_brief'])
+        explicit = stage_tools('C:/tools/ffmpeg.exe', 'C:/tools/ffprobe.exe', Path('bold.ttc'), 2)
+        for stage in ('validate_news_video', 'extract_layout_proof', 'render_news_brief'):
+            self.assertIn('C:/tools/ffprobe.exe', explicit[stage])
+        self.assertIn('--font-index', explicit['render_news_brief'])
+        self.assertNotIn('C:/tools/ffprobe.exe', explicit['mix_timeline_audio'])
 
 
 def find_test_font() -> Path | None:

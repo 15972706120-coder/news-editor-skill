@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.3 — 2026-11-25
+
+- **修复冒烟测试默认参数（2.0.0 引入）**：`smoke_test_brief_pipeline.py` 在没有指定工具路径时，把默认的 `ffmpeg`、`ffprobe` 名字当成“显式文件路径”转发给了校验与分板脚本，它们按文件路径检查后报 `ffprobe not found: ffprobe`。2.0.0–2.0.2 在 Windows 上直接按 README 运行冒烟测试会因此失败，渲染、混音、封装不受影响。现在未指定时不再转发，由各脚本自行从 PATH 查找。
+- **更正 2.0.2 的归因**：当时判断为环境缺少 PATHEXT，实际诊断显示 PATHEXT 正常、`shutil.which` 也能找到 ffprobe；真正原因就是上一条的参数转发。2.0.2 增加的 `.exe` 补查无害，予以保留，但它不是修复。
+
 ## 2.0.2 — 2026-11-25
 
 - **工具查找不再依赖 PATHEXT**：`validate_news_video.py` 与 `extract_layout_proof.py` 用 `shutil.which` 查找 ffmpeg/ffprobe 时只会尝试系统变量 PATHEXT 里的扩展名；该变量缺失的环境里会报 “ffprobe not found”，而同一台机器上渲染、混音等直接调用的阶段都正常。现在 Windows 上找不到时再按 `.exe`、`.cmd`、`.bat` 显式补查。起因：GitHub 的 Windows 主机上冒烟测试的渲染、混音、封装全部成功，唯独校验步骤找不到 ffprobe。
