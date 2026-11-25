@@ -305,7 +305,7 @@ class PerformanceReviewTests(unittest.TestCase):
         with contextlib.redirect_stdout(stdout):
             self.assertEqual(performance.main(["--csv", str(self.csv), "--output", str(output)]), 0)
         self.assertEqual(stdout.getvalue(), "")
-        self.assertEqual(json.loads(output.read_text())["source"]["record_count"], 1)
+        self.assertEqual(json.loads(output.read_text(encoding="utf-8"))["source"]["record_count"], 1)
         aliases = [self.csv]
         link = self.work / "hardlink.csv"
         os.link(self.csv, link)

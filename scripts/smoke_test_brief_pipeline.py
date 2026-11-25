@@ -18,6 +18,10 @@ from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
 ROOT = SCRIPTS.parent
+
+# stdout is machine-readable JSON and may be redirected to a file; never depend on the console code page.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 SAMPLE = ROOT/'assets/references/v3-reference/sample-unmarried-couple.mp4'
 HEADLINE = [{'text': '情侣同居生子未领证', 'style': 'yellow_tag'},
             {'text': '分手后男方起诉索要100万元', 'style': 'black_tag'},

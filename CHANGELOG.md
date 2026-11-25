@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.1 — 2026-11-25
+
+- **修复 Windows 编码问题**：`test_performance_review.py` 读取结果文件时未指定编码，在非中文系统的 Windows 上按本地代码页解码 UTF-8 中文会直接报错（中文系统上只是侥幸通过）；现显式按 UTF-8 读取。`render_news_brief.py` 与 `smoke_test_brief_pipeline.py` 的标准输出改为显式 UTF-8，重定向到文件时不再依赖控制台代码页。
+- **Windows 实跑结论**：在 GitHub 的 Windows 主机上（PowerShell 7.6、FFmpeg 8.1、Python 3.12、微软雅黑粗体）重演了生产机升级路径——已安装的 1.15.0 经**旧版**版本门脚本快进到 2.0，返回 `UPDATED_READY_RELOAD`，重载后复核返回 `LATEST_READY`；全部 PowerShell 脚本语法通过，一致性检查 0 FAIL / 0 WARN。该结论不替代对具体生产机（FFmpeg 版本、Python 环境）的首次实跑。
+
 ## 2.0.0 — 2026-11-24
 
 依据账号四条高播放成片（12306 更新、未婚情侣同居生子分手索款、非洲婚礼父亲送比亚迪当嫁妆、花坛藏尸案一审宣判）逐帧实测，重构选题筛选、素材下载、内容排版和视频制作标准整条流程。逐帧分析发现四条样片均为 9–13 秒、第 0 帧即封面，其中三条没有配音（语音识别只检出 BGM），第四条保留的是素材里当事方的采访原声。

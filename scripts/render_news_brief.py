@@ -12,6 +12,7 @@ import argparse
 import json
 import math
 import subprocess
+import sys
 import time
 from pathlib import Path
 import numpy as np
@@ -19,6 +20,10 @@ from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageFilter
 from production_contract import (load_timeline, read_json, resolve, require, sha256, fullchar_units,
                                  body_geometry, caption_arrival)
 from check_cover_geometry import check_geometry
+
+# stdout is machine-readable JSON and may be redirected to a file; never depend on the console code page.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parent.parent
 BLACK = (0, 0, 0, 255)
