@@ -210,32 +210,53 @@ jobs:
             exit 1
           }
 
-      - name: Contact sheet
+      # Preview helper for people reading the evidence branch. It is not part of the skill and
+      # is not allowed to fail the run; its output goes to an annotation because the job
+      # summary and the step log both need a sign-in to read.
+      - name: Contact sheet (preview only)
         id: sheet
+        continue-on-error: true
         shell: pwsh
         run: |
+          "::notice::SHEET-START (step script parsed)"
           @'
-          import subprocess, sys
+          import subprocess, sys, traceback
           from pathlib import Path
           from PIL import Image, ImageDraw
-          work = Path(sys.argv[1]) / "smoke"
-          src = work / "render" / "candidate.mp4"
-          w, h = 270, 480
-          raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(src), "-vf", f"scale={w}:{h}", "-pix_fmt", "rgb24", "-f", "rawvideo", "-"], capture_output=True, check=True).stdout
-          size = w * h * 3
-          frames = [Image.frombytes("RGB", (w, h), raw[i:i + size]) for i in range(0, len(raw) - size + 1, size)]
-          picks = sorted({0, 1, int(len(frames) * 0.05), int(len(frames) * 0.3), int(len(frames) * 0.55), int(len(frames) * 0.8), len(frames) - 1})
-          labels = ["cover", "first body frame", "caption 1", "caption 2", "shot change", "caption 3", "final"]
-          sheet = Image.new("RGB", (len(picks) * (w + 4) + 4, h + 28), (245, 245, 245))
-          draw = ImageDraw.Draw(sheet)
-          for i, n in enumerate(picks):
-              sheet.paste(frames[n], (4 + i * (w + 4), 24))
-              draw.text((6 + i * (w + 4), 6), f"f{n} {labels[i]}", fill=(0, 0, 0))
-          sheet.save(work / "smoke-contact-sheet.jpg", quality=90)
-          print("frames", len(frames), "sheet", sheet.size)
+          try:
+              work = Path(sys.argv[1]) / "smoke"
+              src = work / "render" / "candidate.mp4"
+              print("src", src, "exists", src.exists())
+              w, h = 270, 480
+              run = subprocess.run(["ffmpeg", "-v", "error", "-i", str(src), "-vf", f"scale={w}:{h}", "-pix_fmt", "rgb24", "-f", "rawvideo", "-"], capture_output=True)
+              print("ffmpeg exit", run.returncode, "bytes", len(run.stdout), "stderr", run.stderr[-600:].decode("utf-8", "replace"))
+              run.check_returncode()
+              raw = run.stdout
+              size = w * h * 3
+              frames = [Image.frombytes("RGB", (w, h), raw[i:i + size]) for i in range(0, len(raw) - size + 1, size)]
+              picks = sorted({0, 1, int(len(frames) * 0.05), int(len(frames) * 0.3), int(len(frames) * 0.55), int(len(frames) * 0.8), len(frames) - 1})
+              labels = ["cover", "first body frame", "caption 1", "caption 2", "shot change", "caption 3", "final"]
+              sheet = Image.new("RGB", (len(picks) * (w + 4) + 4, h + 28), (245, 245, 245))
+              draw = ImageDraw.Draw(sheet)
+              for i, n in enumerate(picks):
+                  sheet.paste(frames[n], (4 + i * (w + 4), 24))
+                  draw.text((6 + i * (w + 4), 6), f"f{n} {labels[i]}", fill=(0, 0, 0))
+              sheet.save(work / "smoke-contact-sheet.jpg", quality=90)
+              print("frames", len(frames), "sheet", sheet.size)
+          except Exception:
+              traceback.print_exc()
+              sys.exit(1)
           '@ | Set-Content -Encoding utf8 (Join-Path $env:RUNNER_TEMP 'sheet.py')
-          python (Join-Path $env:RUNNER_TEMP 'sheet.py') $env:RUNNER_TEMP
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $out = python (Join-Path $env:RUNNER_TEMP 'sheet.py') $env:RUNNER_TEMP 2>&1
+          $code = $LASTEXITCODE
+          $text = (($out | ForEach-Object { "$_" }) -join ' | ') -replace '%', '%25'
+          if ($text.Length -gt 3000) { $text = $text.Substring($text.Length - 3000) }
+          if ($code -eq 0) {
+            "::notice::SHEET $text"
+          } else {
+            "::error title=Contact sheet helper failed (exit $code)::$text"
+            exit 1
+          }
 
       - name: Environment check (informational)
         continue-on-error: true
@@ -257,13 +278,20 @@ jobs:
           git rm -rf --cached -q .
           git clean -fdx -q
           Get-ChildItem $tmp -Filter '*.log' -ErrorAction SilentlyContinue | Copy-Item -Destination .
-          foreach ($rel in 'smoke-contact-sheet.jpg', 'render\candidate.mp4', 'proof\cover.png', 'proof\caption-02-settled.png', 'proof\caption-02-header.png', 'proof\caption-02-footage.png') {
+          foreach ($rel in 'smoke-contact-sheet.jpg', 'render\candidate.mp4', 'render\qa.json') {
             $src = Join-Path $smoke $rel
             if (Test-Path -LiteralPath $src) {
               $folder = Split-Path $rel
               if ($folder) { New-Item -ItemType Directory -Force $folder | Out-Null }
               Copy-Item -LiteralPath $src -Destination $rel
             }
+          }
+          # Full-size frames extracted by the layout proof step: the Windows render with the
+          # production font, cropped per zone plus the whole frames they came from.
+          $proof = Join-Path $smoke 'render\proof'
+          if (Test-Path -LiteralPath $proof) {
+            New-Item -ItemType Directory -Force 'render\proof' | Out-Null
+            Copy-Item -Path (Join-Path $proof '*') -Destination 'render\proof' -Recurse
           }
           @(
             "run=https://github.com/${{ github.repository }}/actions/runs/${{ github.RUN_ID }}"
