@@ -63,7 +63,7 @@
 
 ## 2. 参考资产
 
-对标样片及关键帧位于 `assets/references/v3-reference/`（接触表、四条样片各自的封面与正文帧、字幕滑入逐帧图、字体细节图），封面资产沿用 `assets/references/` 下的既有文件。V2 分页版式的参考帧归档在 `assets/references/locked-layout/legacy-v2/`，仅回看旧成片时使用。
+版式参考图位于 `assets/references/v3-reference/`（参考接触表、字幕滑入逐帧图、字体细节图），由 `scripts/build_layout_reference.py` 用合成素材和示例文案渲染，不含账号或第三方画面；对标成片的原件不随仓库分发。封面资产沿用 `assets/references/` 下的既有文件。V2 分页版式的参考帧归档在 `assets/references/locked-layout/legacy-v2/`，仅回看旧成片时使用。
 
 ## 3. 静态预览与编码后分板验收
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.4 — 2026-11-25
+
+- **移除对标样片及其截帧**：`assets/references/v3-reference/` 下的四条样片视频和从它们截出的 12 张封面、正文帧含有第三方画面，不再随这个公开仓库分发。版式本身没有变化，逐帧实测的数值早已全部在 `config.json` 与锁定 JSON 里。
+- **参考图改为合成素材渲染**：`reference-contact-sheet.png`、`caption-slide-in-strip.png`、`typography-detail.png` 由新增的 `scripts/build_layout_reference.py` 用合成素材和示例文案渲染（三行标题块的视频形态、两行标题块的视频形态、纯图文形态），右下角标注“示例文案 合成素材”。修改版式、渲染器或示例文案后在 Windows 上重跑该脚本，核对后提交。
+- **冒烟测试不再依赖样片**：`smoke_test_brief_pipeline.py` 的素材改由新增的 `scripts/synthetic_media.py` 生成（渐变、光带和颗粒），计划帧数与节奏不变，不再需要任何下载或样片文件。
+- **纯图文标题宽度检查（2.0.0 引入）**：`brief_text` 的大标题是固定字号，渲染器此前只检查它有没有超出画布，超出锁定宽度但没超出画布的标题会被放行。现在超出锁定宽度即报错，要求改写文案。
+- **环境检查**：必需资源清单里去掉样片视频。
+- **持续验证**：新增 `.github/workflows/windows-smoke.yml`，在 GitHub 的 Windows 主机上重演生产机升级路径（从 1.15.0 和上一个版本各走一遍），并跑一致性、单元测试、冒烟测试和参考图重建。任何分支的推送都按推上去的那个提交验证，证据推送到 `ci/windows-smoke` 分支。
+
 ## 2.0.3 — 2026-11-25
 
 - **修复冒烟测试默认参数（2.0.0 引入）**：`smoke_test_brief_pipeline.py` 在没有指定工具路径时，把默认的 `ffmpeg`、`ffprobe` 名字当成“显式文件路径”转发给了校验与分板脚本，它们按文件路径检查后报 `ffprobe not found: ffprobe`。2.0.0–2.0.2 在 Windows 上直接按 README 运行冒烟测试会因此失败，渲染、混音、封装不受影响。现在未指定时不再转发，由各脚本自行从 PATH 查找。

@@ -473,8 +473,7 @@ $requiredSkillFiles = @(
     'assets\audio\bgm-03.mp3',
     'assets\references\cover-style-reference.png',
     'assets\references\cover-typography-reference.png',
-    'assets\references\v3-reference\reference-contact-sheet.png',
-    'assets\references\v3-reference\sample-unmarried-couple.mp4'
+    'assets\references\v3-reference\reference-contact-sheet.png'
 )
 $missingSkillFiles = [System.Collections.Generic.List[string]]::new()
 foreach ($relativePath in $requiredSkillFiles) {

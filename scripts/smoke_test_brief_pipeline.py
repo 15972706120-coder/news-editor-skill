@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Engine smoke test for the brief pipeline: reproduce one bundled account sample and run every stage.
+"""Engine smoke test for the brief pipeline: run every stage on synthetic footage and a pacing fixture.
 
-Footage is cut from the account's own sample under assets/references/v3-reference/, so no download,
-TTS key or platform access is needed. The test cover is an upscaled frame and is deliberately held
-back by the cover geometry gate; the render therefore stays --diagnostic and every output is INTERNAL.
-Passing this test proves wiring and frame accounting only, never editorial or visual approval.
+Footage is generated locally (see synthetic_media.py), so no download, sample video, TTS key or
+platform access is needed. The test cover is a small upscaled frame of that footage and is
+deliberately held back by the cover geometry gate; the render therefore stays --diagnostic and
+every output is INTERNAL. Passing this test proves wiring and frame accounting only, never
+editorial or visual approval.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import subprocess
@@ -20,16 +22,16 @@ SCRIPTS = Path(__file__).resolve().parent
 ROOT = SCRIPTS.parent
 
 # stdout is machine-readable JSON and may be redirected to a file; never depend on the console code page.
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-SAMPLE = ROOT/'assets/references/v3-reference/sample-unmarried-couple.mp4'
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 HEADLINE = [{'text': '情侣同居生子未领证', 'style': 'yellow_tag'},
             {'text': '分手后男方起诉索要100万元', 'style': 'black_tag'},
             {'text': '还辩称两人只是同事', 'style': 'yellow_italic'}]
 BLOCKS = [('b1', ['湖南一对情侣办酒席同居生子', '始终未领证 分手后男方起诉女方', '男方索要百余万元财物并争夺抚养权', '还称二人只是同事关系'], 4.03),
           ('b2', ['衡阳中院二审维持原判', '已满8岁的孩子自愿随母亲生活', '男方按月支付抚养费'], 3.07),
           ('b3', ['判定吉普车归男方 房产双方各占一半', '38万余元转账、彩礼不予返还', '但以结婚为前提赠送的钻剑 判令女方返还'], 3.77)]
-CLIPS = [(1, 94, 0.04, 3.12), (94, 204, 3.16, 3.68), (204, 303, 6.84, 3.32), (303, 390, 10.16, 2.92)]
+# Body frame ranges (end exclusive); every clip is one synthetic shot.
+CLIPS = [(1, 94), (94, 204), (204, 303), (303, 390)]
 NOTE = '视频资料与新闻事件无关'
 
 
@@ -59,11 +61,11 @@ def stage(script: str, arguments: list, tools: dict) -> subprocess.CompletedProc
 
 def build_timeline(work: Path, ffmpeg: str, fps: int) -> Path:
     import hashlib
+    from synthetic_media import synthetic_clip
     clips = []
-    for index, (start, end, source_in, seconds) in enumerate(CLIPS, 1):
+    for index, (start, end) in enumerate(CLIPS, 1):
         clip = work/f'clip-{index}.mp4'
-        run([ffmpeg, '-v', 'error', '-y', '-ss', f'{source_in:.3f}', '-i', str(SAMPLE), '-t', f'{seconds:.3f}',
-             '-vf', 'crop=720:444:0:366', '-an', '-c:v', 'libx264', '-crf', '12', '-pix_fmt', 'yuv420p', str(clip)])
+        synthetic_clip(clip, end-start+1, shot=index-1, fps=fps, ffmpeg=ffmpeg)
         clips.append({'media_type': 'video', 'path': str(clip), 'source_sha256': hashlib.sha256(clip.read_bytes()).hexdigest(),
                       'source_in_seconds': 0, 'start_frame': start, 'end_frame': end, 'crop': [0, 0, 720, 444],
                       'supports_claim': 'INTERNAL smoke-test fixture', 'footage_role': 'contextual_broll',
@@ -109,8 +111,8 @@ def main() -> int:
     parser.add_argument("--work-dir", type=Path, help="defaults to a fresh temporary directory")
     parser.add_argument("--keep", action="store_true", help="keep the work directory after success")
     args = parser.parse_args()
-    if not SAMPLE.is_file() or not args.font.is_file():
-        print(json.dumps({"status": "SMOKE_SKIPPED", "reason": "bundled sample or font missing"}))
+    if not args.font.is_file():
+        print(json.dumps({"status": "SMOKE_SKIPPED", "reason": "font missing"}))
         return 0
     tools = stage_tools(args.ffmpeg, args.ffprobe, args.font, args.font_index)
     work = (args.work_dir or Path(tempfile.mkdtemp(prefix='news-editor-smoke-')))/'smoke'

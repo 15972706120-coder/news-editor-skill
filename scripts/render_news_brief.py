@@ -234,10 +234,12 @@ def header_layer(plan, lock, type_, zones, text_mode):
     block = lock['brief_text']['headline'] if text_mode else body['headline_block']
     layers = headline_layers(plan, lock, type_)
     if text_mode:
+        # The text headline keeps its locked size, so a line wider than the locked width is a rewrite, not a smaller font.
         layer = shear(text_layer(plan['headline_lines'][0]['text'], type_.font(block['font_px']),
                                  rgba(colors['title_yellow']), block['outline_px'], BLACK, block['weight_stroke_px']),
                       block['oblique_shear'])
-        boxes['headline_1'] = compose(canvas, layer, cx=block['center_x'], cy=block['center_y'], label='headline')
+        boxes['headline_1'] = compose(canvas, fit(layer, block['max_width'], 'headline'),
+                                      cx=block['center_x'], cy=block['center_y'], label='headline')
     else:
         centers, edge = [], block['bottom_y']
         for line in reversed(plan['headline_lines']):

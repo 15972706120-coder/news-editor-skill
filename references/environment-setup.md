@@ -369,7 +369,6 @@ assets/audio/bgm-03.mp3
 assets/references/cover-style-reference.png
 assets/references/cover-typography-reference.png
 assets/references/v3-reference/reference-contact-sheet.png
-assets/references/v3-reference/sample-unmarried-couple.mp4
 scripts/validate_news_video.py
 scripts/render_news_brief.py
 ```
@@ -439,10 +438,11 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 
 ### 12.3 渲染、混音与（可选）TTS 测试
 
-- 运行 `python scripts/smoke_test_brief_pipeline.py --font <微软雅黑粗体路径>`，确认输出 `SMOKE_PASSED`，解码帧数等于计划帧数。
+- 运行 `python scripts/smoke_test_brief_pipeline.py --font <微软雅黑粗体路径>`，确认输出 `SMOKE_PASSED`，解码帧数等于计划帧数。素材由脚本自己生成，不需要任何样片或下载文件。
 - 仅使用配音模式时：使用默认女声生成一句中文 MP3。
 - 使用 FFprobe 确认音频时长大于 0。
 - 实际播放，确认中文发音正常。
+- 修改了版式、渲染器或参考图示例文案后：运行 `python scripts/build_layout_reference.py --font <微软雅黑粗体路径>`，逐张核对 `assets/references/v3-reference/` 下重建的三张图后提交。
 
 ### 12.4 Remotion 渲染测试
 

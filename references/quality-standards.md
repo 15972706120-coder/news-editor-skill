@@ -49,7 +49,7 @@
 ## 5. 画面规范
 
 - 默认交付为 1080×1920、30fps；用户指定其他规格时以用户为准。
-- 用户未指定其他视觉方案时，封面、标题块、实拍带、字幕块、字体、颜色和位置必须符合 [visual-audio-template.md](visual-audio-template.md)，并以 `assets/references/v3-reference/` 的对标成片做视觉对照。
+- 用户未指定其他视觉方案时，封面、标题块、实拍带、字幕块、字体、颜色和位置必须符合 [visual-audio-template.md](visual-audio-template.md)，并以 `assets/references/v3-reference/` 的版式参考图做视觉对照。
 - 正文为“标题块＋实拍带＋字幕块”，全部坐标见 `config.json` 的 `layout` 段引用的锁定 JSON；不使用浮动大信息卡、分页正文板或整幅纯色底。
 - 不拉伸人物或主体。实拍带使用等比例放大与焦点裁切铺满；实拍带之外由渲染器用素材模糊副本填充。
 - 识别源文件内部的黑边和全部画面内文字。原始字幕、标题条、日期条和说明文字优先通过换时间段、裁剪、焦点移动移出实拍带。

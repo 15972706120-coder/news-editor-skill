@@ -95,7 +95,7 @@ python scripts/minimax_tts.py --text-file <block.txt> --page-id <block-id> --out
 
 ## 6. 失败、内部测试与发布
 
-普通命令遇到坏封面、超长文案、错音频或来源不足时停止对应节点。维护回归才允许 `--diagnostic` 重现失败；产物固定标记 INTERNAL/DRAFT、diagnostic=true、final_ready=false，不得进入发布区。`smoke_test_brief_pipeline.py` 用内置样片跑通全链路，产物同样是内部诊断。
+普通命令遇到坏封面、超长文案、错音频或来源不足时停止对应节点。维护回归才允许 `--diagnostic` 重现失败；产物固定标记 INTERNAL/DRAFT、diagnostic=true、final_ready=false，不得进入发布区。`smoke_test_brief_pipeline.py` 用合成素材跑通全链路，产物同样是内部诊断。
 
 机器验收返回 `MACHINE_CHECKS_PASSED`，从不自动返回 FINAL_READY。最终发布另需 `acceptance.json`：
 

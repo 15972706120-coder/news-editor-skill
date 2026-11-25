@@ -2,19 +2,17 @@
 
 > 新制作先执行 [当前制作配置](current-production-profile-v3.md)。本文件只保留活动规范；被取代的分页版式与强制配音规则见 CHANGELOG。
 
-本模板用于用户没有另行指定视觉或声音方案的新闻短视频，依据是账号四条高播放成片的逐帧实测。制作封面、字幕块、音频模式或最终视觉验收前读取本文件，并按需检查对应参考资产。用户当次明确要求优先于本模板；参考资产中的示例新闻文字、人物和画面只用于观察样式，不得复制到其他新闻成片中。
+本模板用于用户没有另行指定视觉或声音方案的新闻短视频，依据是账号四条高播放成片的逐帧实测。制作封面、字幕块、音频模式或最终视觉验收前读取本文件，并按需检查对应参考资产。用户当次明确要求优先于本模板；参考资产中的示例文案和合成画面只用于观察样式，不得复制到其他新闻成片中。
 
-## 对标参考资产
+## 版式参考资产
 
-全部位于 `assets/references/v3-reference/`，是账号自己已发布的成片经平台转码后的 720×1280@25fps 文件，版式坐标按 1.5 倍归一到 1080×1920 后写入锁定 JSON：
+全部位于 `assets/references/v3-reference/`，由 `scripts/build_layout_reference.py` 用合成素材和示例文案渲染（微软雅黑粗体），不含任何账号或第三方画面。版式坐标以锁定 JSON 为准，参考图只用来对照观感：
 
-- [参考接触表](../assets/references/v3-reference/reference-contact-sheet.png)：四条样片的封面与两张正文稳定帧并排，用于快速核对整体观感。
-- `sample-12306-update-*`：纯图文版（`brief_text`）的封面、正文；政策时间表类没有素材时照此做。
-- `sample-unmarried-couple-*`：三行标题块＋红字结果行＋资料画面＋免责小字的视频形态；全部素材为资料画面，配 BGM。
-- `sample-africa-wedding-*`：两行标题块＋现场素材＋评论截图浮层＋文字材料截图。
-- `sample-flowerbed-case-*`：白字首行＋黄底行的标题块，实拍带保留源字幕与当事方原声。
+- [参考接触表](../assets/references/v3-reference/reference-contact-sheet.png)：三行依次是三行标题块的视频形态、两行标题块（白字首行）的视频形态、纯图文形态；每行给封面、字幕稳定帧和末帧。
 - [字幕滑入逐帧](../assets/references/v3-reference/caption-slide-in-strip.png)：字幕块 6 帧滑入的拖尾形态。
-- [标题与字幕细节](../assets/references/v3-reference/typography-detail.png)：斜体、描边、黄底标签的放大细节。
+- [标题与字幕细节](../assets/references/v3-reference/typography-detail.png)：四种标题行样式、结果行、免责小字、字幕、纯图文正文高亮和封面文字的放大细节。
+
+对标用的四条账号成片原件不随仓库分发（含第三方画面）。四种题型的做法：政策时间表等没有素材的信息用纯图文版（`brief_text`）；判决、纠纷类用三行标题块＋红字结果行，全部为资料画面时加免责小字；暖闻、现场类用两行标题块＋现场素材，讨论氛围可用评论截图浮层；有当事方原话的保留源字幕与原声。修改版式、渲染器或示例文案后，在 Windows 上重跑 `build_layout_reference.py`，核对并提交这三张图。
 
 封面沿用既有参考资产（样式未变）：[封面完整样式](../assets/references/cover-style-reference.png)、[封面文字与装饰](../assets/references/cover-typography-reference.png)、[V3 透明四角框与手绘线](../assets/references/cover-frame-lines-v3.png)、[封面双列缩略图正反例](../assets/references/cover-grid-good-bad-reference.jpg)、[平台叠层参考](../assets/references/platform-overlay-reference.webp)。旧版分页成片的资产已归档到 `assets/legacy-v2/`，只供回看旧成片，不再作为制作依据。
 

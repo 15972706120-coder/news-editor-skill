@@ -1,15 +1,15 @@
 name: Windows smoke
 
-# Rehearses what a production Windows machine goes through, on GitHub's own Windows host.
-# The installed version is checked out first, then the gate script fast-forwards it to GitHub
-# main, which runs the OLD script's post-update validation for real. Afterwards the 2.x gates
-# and the brief pipeline run. Nothing here changes main or touches a production machine.
-# Diagnostics go to annotations and evidence is pushed to a scratch branch, so the result can
-# be inspected without signing in (the workflow token cannot post commit statuses).
+# Verifies the pushed commit itself on GitHub's own Windows host, the way a production Windows
+# machine would receive it: the installed version's gate script fast-forwards to that commit and
+# validates the result with its own (older) file list. The current gates and the brief pipeline
+# then run on the same commit. Nothing here changes main or touches a production machine.
+# Diagnostics go to annotations and evidence is pushed to a scratch branch, so the result can be
+# inspected without signing in (the workflow token cannot post commit statuses).
 
 on:
   push:
-    branches: [main, v3-brief]
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 
@@ -17,8 +17,11 @@ permissions:
   contents: write
 
 env:
-  UPGRADE_FROM: 6fb1d3bc3bfeb74fdaa813200ba18223903a7dbd
+  TRUSTED_REPOSITORY: https://github.com/15972706120-coder/news-editor-skill.git
   ARTIFACT_BRANCH: ci/windows-smoke
+  # Installed versions a production machine may still be on. Each one's own gate script must be
+  # able to fast-forward to the pushed commit. Add the previous release whenever a new one ships.
+  UPGRADE_ORIGINS: '1.15.0=6fb1d3bc3bfeb74fdaa813200ba18223903a7dbd;2.0.3=4ab4f3f0aac1f4c77ddbf76e46ad398f92c7b14c'
 
 jobs:
   windows:
@@ -99,7 +102,6 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Pillow cannot load the selected font' }
             Note "FONT smoke font: $font"
             "SMOKE_FONT=$font" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-            "FF=$ff" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           } catch {
             $msg = (("$($_.Exception.GetType().Name): $($_.Exception.Message)" -replace "`r?`n", ' | ') -replace '%', '%25')
             "::error title=Toolchain::$msg"
@@ -123,36 +125,61 @@ jobs:
           if ($failed) { exit 1 }
           "::notice::POWERSHELL all scripts parse on $(pwsh --version)"
 
-      - name: Production upgrade path (installed version to main through the gate script)
+      - name: Production upgrade path (each installed version, through its own gate script, to the pushed commit)
         id: upgrade
         shell: pwsh
         run: |
           $ErrorActionPreference = 'stop'
           $PSNativeCommandUseErrorActionPreference = $false
+          $candidate = Join-Path $env:RUNNER_TEMP 'candidate.git'
+          $rewrite = 'url.'+($candidate -replace '\\', '/')+'.insteadOf'
           try {
-            git remote set-url origin https://github.com/15972706120-coder/news-editor-skill.git
-            git checkout -q -B main $env:UPGRADE_FROM
-            $dirty = git status --porcelain=v1 --untracked-files=all
-            if ($dirty) { throw "worktree is not clean: $dirty" }
-            $before = "installed before gate: $(git rev-parse --short HEAD) VERSION=$(Get-Content VERSION)"
-            $first = & pwsh -NoProfile -File scripts/ensure_latest_skill.ps1 -RunId ([guid]::NewGuid().ToString())
-            $firstCode = $LASTEXITCODE
-            $afterFirst = "after first gate: $(git rev-parse --short HEAD) VERSION=$(Get-Content VERSION)"
-            $second = & pwsh -NoProfile -File scripts/ensure_latest_skill.ps1 -RunId ([guid]::NewGuid().ToString())
-            $secondCode = $LASTEXITCODE
-            $j1 = $first | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
-            $j2 = $second | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
-            $s1 = if ($j1) { ("$j1" | ConvertFrom-Json).status } else { 'NO_JSON' }
-            $s2 = if ($j2) { ("$j2" | ConvertFrom-Json).status } else { 'NO_JSON' }
-            "::notice::GATE-OLD $before | exit=$firstCode status=$s1 | $afterFirst | output: $($first -join ' ')"
-            "::notice::GATE-NEW exit=$secondCode status=$s2 | output: $($second -join ' ')"
-            "GATE1=$s1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-            "GATE2=$s2" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-            if ($s1 -ne 'UPDATED_READY_RELOAD' -or $s2 -ne 'LATEST_READY' -or $firstCode -ne 0 -or $secondCode -ne 0) { exit 1 }
+            # The gate scripts only ever talk to the trusted GitHub URL. A local bare repository
+            # stands in for it through url.insteadOf, so the unchanged gate scripts fast-forward to
+            # the pushed commit (what a production machine will do once it is merged), not to the
+            # real main.
+            git init -q --bare $candidate
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+            git push -q $candidate "$($env:GITHUB_SHA):refs/heads/main"
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+            git config --global $rewrite $env:TRUSTED_REPOSITORY
+            $lines = @()
+            foreach ($origin in ($env:UPGRADE_ORIGINS -split ';')) {
+              $label, $sha = $origin -split '=', 2
+              git remote set-url origin $env:TRUSTED_REPOSITORY
+              git checkout -q -B main $sha
+              if ($LASTEXITCODE -ne 0) { exit 1 }
+              $dirty = git status --porcelain=v1 --untracked-files=all
+              if ($dirty) { throw "worktree is not clean: $dirty" }
+              $gate = & pwsh -NoProfile -File scripts/ensure_latest_skill.ps1 -RunId ([guid]::NewGuid().ToString())
+              $code = $LASTEXITCODE
+              $json = $gate | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
+              $status = if ($json) { ("$json" | ConvertFrom-Json).status } else { 'NO_JSON' }
+              $version = (Get-Content VERSION).Trim()
+              $head = git rev-parse HEAD
+              $lines += "$label -> $version/$($head.Substring(0, 7)) exit=$code status=$status"
+              if ($code -ne 0 -or $status -ne 'UPDATED_READY_RELOAD' -or $head -ne $env:GITHUB_SHA) {
+                throw "upgrade from $label failed: exit=$code status=$status head=$head output: $($gate -join ' ')"
+              }
+            }
+            $gate = & pwsh -NoProfile -File scripts/ensure_latest_skill.ps1 -RunId ([guid]::NewGuid().ToString())
+            $code = $LASTEXITCODE
+            $json = $gate | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
+            $status = if ($json) { ("$json" | ConvertFrom-Json).status } else { 'NO_JSON' }
+            $lines += "reloaded gate exit=$code status=$status"
+            if ($code -ne 0 -or $status -ne 'LATEST_READY') { throw "gate on the pushed commit failed: exit=$code status=$status output: $($gate -join ' ')" }
+            $head = git rev-parse HEAD
+            if ($head -ne $env:GITHUB_SHA) { throw "the working tree is not on the pushed commit: $head" }
+            "::notice::GATE $($lines -join ' | ')"
+            "GATE=$($lines -join ' > ')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           } catch {
             $msg = (("$($_.Exception.GetType().Name): $($_.Exception.Message)" -replace "`r?`n", ' | ') -replace '%', '%25')
+            if ($msg.Length -gt 3500) { $msg = $msg.Substring(0, 3500) + '...' }
             "::error title=Upgrade path::$msg"
             exit 1
+          } finally {
+            # Later steps must reach the real repository again (the evidence push).
+            git config --global --unset $rewrite 2>$null
           }
 
       - name: Consistency check
@@ -188,9 +215,6 @@ jobs:
         id: smoke
         shell: pwsh
         run: |
-          $where = (where.exe ffprobe 2>&1) -join ' ; '
-          $diag = python -c "import os, shutil; print('which(ffprobe)=', shutil.which('ffprobe'), '| which(ffprobe.exe)=', shutil.which('ffprobe.exe'), '| which(ffmpeg)=', shutil.which('ffmpeg'), '| PATHEXT=', repr(os.environ.get('PATHEXT')))" 2>&1
-          "::notice::SMOKE-ENV where ffprobe: $where | python: $($diag -join ' ')"
           $out = python scripts/smoke_test_brief_pipeline.py --font $env:SMOKE_FONT --work-dir (Join-Path $env:RUNNER_TEMP 'smoke') 2>&1
           $code = $LASTEXITCODE
           $out | Out-File -FilePath (Join-Path $env:RUNNER_TEMP 'smoke.log') -Encoding utf8
@@ -207,6 +231,28 @@ jobs:
             $tail = (($out | Select-Object -Last 40) -join ' | ') -replace '%', '%25'
             if ($tail.Length -gt 3000) { $tail = $tail.Substring($tail.Length - 3000) }
             "::error file=scripts/smoke_test_brief_pipeline.py::$tail"
+            exit 1
+          }
+
+      - name: Reference stills (rebuild as evidence)
+        id: reference
+        shell: pwsh
+        run: |
+          $out = python scripts/build_layout_reference.py --font $env:SMOKE_FONT --out-dir (Join-Path $env:RUNNER_TEMP 'reference') --work-dir (Join-Path $env:RUNNER_TEMP 'reference-work') --compare-dir assets/references/v3-reference 2>&1
+          $code = $LASTEXITCODE
+          $line = $out | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
+          $summary = "exit=$code (no JSON line)"
+          if ($line) {
+            $r = "$line" | ConvertFrom-Json
+            $summary = "$($r.status) frames=$($r.frames.full)/$($r.frames.'two-line')/$($r.frames.text)"
+            if ($r.compared) { $summary += " committed: $($r.compared -join ', ')" }
+            if ($r.error) { $out = @("$($r.error)") + $out }
+          }
+          "::notice::REFERENCE $summary"
+          if ($code -ne 0 -or $summary -notlike 'REFERENCE_BUILT*') {
+            $tail = (($out | Select-Object -Last 40) -join ' | ') -replace '%', '%25'
+            if ($tail.Length -gt 3000) { $tail = $tail.Substring($tail.Length - 3000) }
+            "::error file=scripts/build_layout_reference.py::$tail"
             exit 1
           }
 
@@ -284,6 +330,10 @@ jobs:
         run: |
           $tmp = $env:RUNNER_TEMP
           $smoke = Join-Path $tmp 'smoke\smoke'
+          # The upgrade step removes its URL rewrite before exiting; make sure none is left,
+          # because this push has to reach the real repository.
+          $candidate = Join-Path $tmp 'candidate.git'
+          git config --global --unset ('url.'+($candidate -replace '\\', '/')+'.insteadOf') 2>$null
           git checkout -q --orphan $env:ARTIFACT_BRANCH
           git rm -rf --cached -q .
           git clean -fdx -q
@@ -303,11 +353,16 @@ jobs:
             New-Item -ItemType Directory -Force 'render\proof' | Out-Null
             Copy-Item -Path (Join-Path $proof '*') -Destination 'render\proof' -Recurse
           }
+          # Reference stills rebuilt from the pushed commit with the production font.
+          if (Test-Path -LiteralPath (Join-Path $tmp 'reference')) {
+            New-Item -ItemType Directory -Force 'reference' | Out-Null
+            Copy-Item -Path (Join-Path $tmp 'reference\*.png') -Destination 'reference'
+          }
           @(
             "run=https://github.com/${{ github.repository }}/actions/runs/${{ github.RUN_ID }}"
-            "sha=$env:GITHUB_SHA"
+            "commit=$env:GITHUB_SHA"
             "font=$env:SMOKE_FONT"
-            "gate=$env:GATE1 > $env:GATE2"
+            "gate=$env:GATE"
             "smoke=$env:SMOKE"
           ) | Set-Content -Encoding utf8 RUN.txt
           git add -A

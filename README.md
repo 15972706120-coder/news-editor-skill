@@ -6,7 +6,7 @@
 
 按账号实测的题材优先级筛选热点、核验事实、下载可追溯素材，套用锁定的“标题块＋实拍带＋滑入字幕”版式，以 BGM＋字幕产出 9–15 秒竖屏成片，验收后发布。
 
-[![Version](https://img.shields.io/badge/version-2.0.3-00DCE6?style=flat-square)](VERSION)
+[![Version](https://img.shields.io/badge/version-2.0.4-00DCE6?style=flat-square)](VERSION)
 ![Status](https://img.shields.io/badge/status-active-2EA44F?style=flat-square)
 ![Canvas](https://img.shields.io/badge/canvas-1080%C3%971920-FFD400?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?style=flat-square)
@@ -23,7 +23,7 @@ News-Editor 是一个面向 Codex 与兼容 Agent 平台的新闻短视频生产
 
 它不生成新闻画面：成片主体始终是真实、可追溯的素材；资料画面必须带免责小字，当事方原话可以保留源字幕与原声。
 
-![对标成片参考接触表](assets/references/v3-reference/reference-contact-sheet.png)
+![版式参考图：合成素材与示例文案渲染的三种形态](assets/references/v3-reference/reference-contact-sheet.png)
 
 适合：
 
@@ -75,7 +75,7 @@ News-Editor
 ├─ scripts/                 # 版本门、时间轴契约、渲染、混音、合成、校验、分板与冒烟测试
 ├─ assets/
 │  ├─ audio/                # 内置新闻 BGM
-│  ├─ references/           # 锁定版式、封面资产、平台遮挡与对标成片参考
+│  ├─ references/           # 锁定版式、封面资产、平台遮挡与版式参考图
 │  └─ legacy-v2/            # 旧版分页成片资产，仅供回看
 ├─ agents/openai.yaml       # Skill 展示名称与调用提示
 └─ hooks/pre-commit         # 发布前一致性与回归门禁
@@ -90,16 +90,16 @@ News-Editor
 
 ## 对标成片
 
-版式来自账号自己已发布的四条高播放成片，原件与关键帧收录在 `assets/references/v3-reference/`：
+版式来自账号自己已发布的四条高播放成片。四条原件及其截帧含有第三方画面，自 2.0.4 起不再随仓库分发；逐帧实测得到的坐标、字号、颜色和节奏已全部写入 `config.json` 与锁定 JSON。
 
-| 样片 | 题型 | 成片形态 | 音频 |
+| 对标成片 | 题型 | 成片形态 | 音频 |
 |---|---|---|---|
 | 12306 更新 | 民生政策时间表 | 纯图文：蓝色背景＋面板＋逐行正文 | BGM |
 | 未婚情侣同居生子分手索款 | 情感纠纷＋判决 | 三行标题块＋红字结果行＋资料画面＋免责小字 | BGM |
 | 非洲婚礼父亲送比亚迪当嫁妆 | 国际暖闻＋国产品牌 | 两行标题块＋现场素材＋评论截图浮层 | BGM |
 | 花坛藏尸案一审宣判 | 社会案件 | 白字首行＋黄底行标题块，保留源字幕 | 当事方原声＋BGM |
 
-渲染器用这四条样片自己的素材与文案各复刻了一遍，逐帧对比确认版式、字幕滑入和切点行为一致；`scripts/smoke_test_brief_pipeline.py` 会用其中的样片重跑这条链路。
+`assets/references/v3-reference/` 里的三张版式参考图由 `scripts/build_layout_reference.py` 用合成素材和示例文案渲染，分别对应上表第一、二、四行的形态。`scripts/smoke_test_brief_pipeline.py` 同样用合成素材重跑整条编码链，不依赖任何下载或样片文件。
 
 ## 标准制作流程
 
