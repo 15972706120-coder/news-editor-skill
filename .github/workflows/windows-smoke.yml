@@ -4,8 +4,8 @@ name: Windows smoke
 # The installed version is checked out first, then the gate script fast-forwards it to GitHub
 # main, which runs the OLD script's post-update validation for real. Afterwards the 2.x gates
 # and the brief pipeline run. Nothing here changes main or touches a production machine.
-# Diagnostics go to annotations and the job summary (readable without signing in); evidence
-# is also pushed to a scratch branch when the token is allowed to write.
+# Diagnostics go to annotations and evidence is pushed to a scratch branch, so the result can
+# be inspected without signing in.
 
 on:
   push:
@@ -24,7 +24,7 @@ env:
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
         with:
@@ -37,27 +37,51 @@ jobs:
       - name: Install Python dependencies
         shell: pwsh
         run: |
-          python -m pip install --disable-pip-version-check pillow numpy 2>&1 | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append | Select-Object -Last 2
+          python -m pip install --disable-pip-version-check pillow numpy
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install FFmpeg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'stop'
+          if (Get-Command ffmpeg -ErrorAction SilentlyContinue) { Write-Host 'ffmpeg already on PATH'; exit 0 }
+          try {
+            $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest' -Headers @{ 'User-Agent' = 'news-editor-smoke' }
+            $asset = $release.assets | Where-Object { $_.name -match '^ffmpeg-n[\d.]+-latest-win64-gpl-[\d.]+\.zip$' } | Select-Object -First 1
+            if (-not $asset) { throw 'no win64 gpl asset in the BtbN latest release' }
+            $zip = Join-Path $env:RUNNER_TEMP $asset.name
+            Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zip -TimeoutSec 420
+            $dir = Join-Path $env:RUNNER_TEMP 'ffmpeg'
+            Expand-Archive -Path $zip -DestinationPath $dir -Force
+            $bin = Get-ChildItem $dir -Recurse -Filter ffmpeg.exe | Select-Object -First 1 | Select-Object -ExpandProperty DirectoryName
+            $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            Write-Host "installed $($asset.name)"
+          } catch {
+            Write-Host "static build failed ($($_.Exception.Message)); falling back to Chocolatey"
+            Choco Install ffmpeg -y --no-progress --limit-output
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
 
       - name: Toolchain
         id: toolchain
         shell: pwsh
         run: |
           $ErrorActionPreference = 'stop'
-          function Note([string]$m) { $m | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append }
+          $PSNativeCommandUseErrorActionPreference = $false
+          function Note([string]$m) {
+            $one = (($m -replace "`r?`n", ' | ') -replace '%', '%25')
+            if ($one.Length -gt 3000) { $one = $one.Substring(0, 3000) + '...' }
+            "::notice::$one"
+            $one | Out-File -FilePath (Join-Path $env:RUNNER_TEMP 'notes.log') -Append -Encoding utf8
+          }
           try {
             $ff = (ffmpeg -version | Select-Object -First 1)
             $fp = (ffprobe -version | Select-Object -First 1)
-            Note "ffmpeg: $ff"
-            Note "ffprobe: $fp"
-            Note "pwsh: $(pwsh --version)"
-            Note "python: $(python --version)"
-            Note "PSNativeCommandUseErrorActionPreference=$PSNativeCommandUseErrorActionPreference"
+            Note "TOOLCHAIN ffmpeg: $ff | ffprobe: $fp | $(pwsh --version) | $(python --version)"
             $font = 'C:\Windows\Fonts\msyhbd.ttc'
             if (-not (Test-Path -LiteralPath $font)) {
-              $cjk = Get-ChildItem C:\Windows\Fonts -Include msyh*, simhei*, Deng*, simsun*, *NotoSans*CJK*, *SourceHan* -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
-              Note "Microsoft YaHei Bold is not installed; CJK fonts on this image: $($cjk -join '; ')"
+              $cjk = Get-ChildItem C:\Windows\Fonts -Include msyh*, simhei*, Deng*, simsun*, *NotoSans*CJK*, *SourceHan* -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+              Note "FONT Microsoft YaHei Bold is not installed on this image; CJK fonts present: $($cjk -join ', ')"
               $font = Join-Path $env:RUNNER_TEMP 'NotoSansCJKsc-Bold.otf'
               $urls = @(
                 'https://cdn.jsdelivr.net/gh/notofonts/noto-cjk@main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Bold.otf',
@@ -66,22 +90,20 @@ jobs:
               $done = $false
               foreach ($u in $urls) {
                 try {
-                  Invoke-WebRequest -Uri $u -OutFile $font -TimeoutSec 180
-                  if ((Get-Item $font).Length -gt 1MB) { $done = $true; Note "font downloaded from $u ($((Get-Item $font).Length) bytes)"; break }
-                  Note "font from $u is only $((Get-Item $font).Length) bytes"
-                } catch { Note "font download failed from $u : $($_.Exception.Message)" }
+                  Invoke-WebRequest -Uri $u -OutFile $font -TimeoutSec 240
+                  if ((Get-Item $font).Length -gt 1MB) { $done = $true; break }
+                } catch { Write-Host "font download failed from $u : $($_.Exception.Message)" }
               }
               if (-not $done) { throw 'no CJK bold font available on this host' }
             }
             python -c "from PIL import ImageFont; f = ImageFont.truetype(r'$font', 40); print('font ok:', f.getname())"
             if ($LASTEXITCODE -ne 0) { throw 'Pillow cannot load the selected font' }
-            Note "smoke font: $font"
+            Note "FONT smoke font: $font"
             "SMOKE_FONT=$font" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
             "FF=$ff" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           } catch {
-            $msg = "$($_.Exception.GetType().Name): $($_.Exception.Message)" -replace "`r?`n", ' | '
+            $msg = (("$($_.Exception.GetType().Name): $($_.Exception.Message)" -replace "`r?`n", ' | ') -replace '%', '%25')
             "::error title=Toolchain::$msg"
-            Note "TOOLCHAIN ERROR: $msg"
             exit 1
           }
 
@@ -96,11 +118,11 @@ jobs:
             [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count) {
               $failed = $true
-              $errors | ForEach-Object { "$($_.Extent.File): $($_.Message)" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append }
+              $errors | ForEach-Object { "::error file=$($_.Extent.File),line=$($_.Extent.StartLineNumber)::$($_.Message)" }
             }
           }
           if ($failed) { exit 1 }
-          "PowerShell: all scripts parse" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "::notice::POWERSHELL all scripts parse on $(pwsh --version)"
 
       - name: Production upgrade path (installed version to main through the gate script)
         id: upgrade
@@ -113,29 +135,24 @@ jobs:
             git checkout -q -B main $env:UPGRADE_FROM
             $dirty = git status --porcelain=v1 --untracked-files=all
             if ($dirty) { throw "worktree is not clean: $dirty" }
-            "installed before gate: $(git rev-parse --short HEAD) VERSION=$(Get-Content VERSION)" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            $before = "installed before gate: $(git rev-parse --short HEAD) VERSION=$(Get-Content VERSION)"
             $first = & pwsh -NoProfile -File scripts/ensure_latest_skill.ps1 -RunId ([guid]::NewGuid().ToString())
             $firstCode = $LASTEXITCODE
+            $afterFirst = "after first gate: $(git rev-parse --short HEAD) VERSION=$(Get-Content VERSION)"
             $second = & pwsh -NoProfile -File scripts/ensure_latest_skill.ps1 -RunId ([guid]::NewGuid().ToString())
             $secondCode = $LASTEXITCODE
             $j1 = $first | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
             $j2 = $second | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
             $s1 = if ($j1) { ("$j1" | ConvertFrom-Json).status } else { 'NO_JSON' }
             $s2 = if ($j2) { ("$j2" | ConvertFrom-Json).status } else { 'NO_JSON' }
-            @(
-              "old gate (the script production runs today): exit=$firstCode status=$s1"
-              "old gate output: $($first -join ' ')"
-              "new gate (after reload): exit=$secondCode status=$s2"
-              "new gate output: $($second -join ' ')"
-              "active after gate: $(git rev-parse --short HEAD) VERSION=$(Get-Content VERSION)"
-            ) | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "::notice::GATE-OLD $before | exit=$firstCode status=$s1 | $afterFirst | output: $($first -join ' ')"
+            "::notice::GATE-NEW exit=$secondCode status=$s2 | output: $($second -join ' ')"
             "GATE1=$s1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
             "GATE2=$s2" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
             if ($s1 -ne 'UPDATED_READY_RELOAD' -or $s2 -ne 'LATEST_READY' -or $firstCode -ne 0 -or $secondCode -ne 0) { exit 1 }
           } catch {
-            $msg = "$($_.Exception.GetType().Name): $($_.Exception.Message)" -replace "`r?`n", ' | '
+            $msg = (("$($_.Exception.GetType().Name): $($_.Exception.Message)" -replace "`r?`n", ' | ') -replace '%', '%25')
             "::error title=Upgrade path::$msg"
-            $msg | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
             exit 1
           }
 
@@ -143,25 +160,29 @@ jobs:
         id: consistency
         shell: pwsh
         run: |
-          python scripts/check_skill_consistency.py 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'consistency.log') | Select-Object -Last 25 | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $out = python scripts/check_skill_consistency.py 2>&1
+          $code = $LASTEXITCODE
+          "::notice::CONSISTENCY exit=$code :: $((($out | Select-Object -Last 12) -join ' | ') -replace '%', '%25')"
+          if ($code -ne 0) { exit $code }
 
       - name: Unit tests (includes the Windows publish dry-run gate)
         id: tests
         shell: pwsh
         run: |
-          $log = Join-Path $env:RUNNER_TEMP 'tests.log'
           $failed = @()
+          $lines = @()
           foreach ($t in 'test_cover_geometry.py', 'test_production_contract.py', 'test_orchestration_contract.py', 'test_editorial_contract.py', 'test_editorial_ledger.py', 'test_performance_review.py') {
-            "=== $t" | Tee-Object -FilePath $log -Append | Out-Null
             $out = python (Join-Path scripts $t) 2>&1
-            $out | Tee-Object -FilePath $log -Append | Out-Null
-            "=== $t exit=$LASTEXITCODE :: $(($out | Select-Object -Last 1) -join ' ')" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
-            if ($LASTEXITCODE -ne 0) {
+            $code = $LASTEXITCODE
+            $lines += "$t exit=$code [$(($out | Select-Object -Last 1) -join ' ')]"
+            if ($code -ne 0) {
               $failed += $t
-              $out | Select-Object -Last 25 | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+              $tail = (($out | Select-Object -Last 30) -join ' | ') -replace '%', '%25'
+              if ($tail.Length -gt 2800) { $tail = $tail.Substring($tail.Length - 2800) }
+              "::error file=scripts/$t::$tail"
             }
           }
+          "::notice::TESTS $($lines -join ' ; ')"
           if ($failed.Count) { exit 1 }
 
       - name: Smoke test (render, mix, assemble, validate, layout proof)
@@ -170,17 +191,22 @@ jobs:
         run: |
           $out = python scripts/smoke_test_brief_pipeline.py --font $env:SMOKE_FONT --work-dir (Join-Path $env:RUNNER_TEMP 'smoke') 2>&1
           $code = $LASTEXITCODE
-          $out | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'smoke.log') | Out-Null
+          $out | Out-File -FilePath (Join-Path $env:RUNNER_TEMP 'smoke.log') -Encoding utf8
           $line = $out | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
           $summary = "exit=$code (no JSON line)"
           if ($line) {
             $r = "$line" | ConvertFrom-Json
             $summary = "$($r.status) frames=$($r.decoded_frames)/$($r.planned_frames) lufs=$($r.final_lufs) failed=$(@($r.failed_checks).Count)"
-            if ($r.error) { ($("$($r.error)" -split "`n") | Select-Object -Last 12) | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append }
-          } else { $out | Select-Object -Last 15 | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append }
-          "smoke: $summary" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            if ($r.error) { $out = @("$($r.error)") + $out }
+          }
+          "::notice::SMOKE $summary"
           "SMOKE=$summary" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          if ($code -ne 0 -or $summary -notlike 'SMOKE_PASSED*') { exit 1 }
+          if ($code -ne 0 -or $summary -notlike 'SMOKE_PASSED*') {
+            $tail = (($out | Select-Object -Last 40) -join ' | ') -replace '%', '%25'
+            if ($tail.Length -gt 3000) { $tail = $tail.Substring($tail.Length - 3000) }
+            "::error file=scripts/smoke_test_brief_pipeline.py::$tail"
+            exit 1
+          }
 
       - name: Contact sheet
         id: sheet
@@ -213,10 +239,14 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          pwsh -NoProfile -File scripts/check_environment.ps1 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'environment.log') | Select-Object -Last 12 | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          "check_environment exit=$LASTEXITCODE (missing browser and download tools are expected on this host)" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          $out = pwsh -NoProfile -File scripts/check_environment.ps1 2>&1
+          $code = $LASTEXITCODE
+          $tail = (($out | Select-Object -Last 10) -join ' | ') -replace '%', '%25'
+          if ($tail.Length -gt 2500) { $tail = $tail.Substring($tail.Length - 2500) }
+          "::notice::ENVIRONMENT check_environment exit=$code :: $tail"
 
       - name: Publish summary as a commit status
+        if: always()
         shell: pwsh
         env:
           SYNTAX: ${{ steps.syntax.outcome }}
@@ -234,10 +264,10 @@ jobs:
             $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
             $body = @{ state = $state; context = 'Windows smoke'; description = $summary } | ConvertTo-Json
             Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.SHA }}" -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $body | Out-Null
-            "$state status posted: $summary" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            "::notice::STATUS posted: $state $summary"
           } catch {
-            $msg = "$($_.Exception.GetType().Name): $($_.Exception.Message)" -replace "`r?`n", ' | '
-            "status not posted ($msg). Intended: $state $summary" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            $msg = (("$($_.Exception.GetType().Name): $($_.Exception.Message)" -replace "`r?`n", ' | ') -replace '%', '%25')
+            "::warning title=Commit status not posted::$msg | intended: $state $summary"
           }
 
       - name: Publish evidence
@@ -245,13 +275,18 @@ jobs:
         shell: pwsh
         run: |
           $tmp = $env:RUNNER_TEMP
-          $dst = Join-Path $tmp 'evidence'
-          New-Item -ItemType Directory -Force $dst | Out-Null
-          Get-ChildItem $tmp -Filter '*.log' | Copy-Item -Destination $dst
           $smoke = Join-Path $tmp 'smoke\smoke'
+          git checkout -q --orphan $env:ARTIFACT_BRANCH
+          git rm -rf --cached -q .
+          git clean -fdx -q
+          Get-ChildItem $tmp -Filter '*.log' -ErrorAction SilentlyContinue | Copy-Item -Destination .
           foreach ($rel in 'smoke-contact-sheet.jpg', 'render\candidate.mp4', 'proof\cover.png', 'proof\caption-02-settled.png', 'proof\caption-02-header.png', 'proof\caption-02-footage.png') {
             $src = Join-Path $smoke $rel
-            if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $dst }
+            if (Test-Path -LiteralPath $src) {
+              $folder = Split-Path $rel
+              if ($folder) { New-Item -ItemType Directory -Force $folder | Out-Null }
+              Copy-Item -LiteralPath $src -Destination $rel
+            }
           }
           @(
             "run=https://github.com/${{ github.repository }}/actions/runs/${{ github.RUN_ID }}"
@@ -259,19 +294,17 @@ jobs:
             "font=$env:SMOKE_FONT"
             "gate=$env:GATE1 > $env:GATE2"
             "smoke=$env:SMOKE"
-          ) | Set-Content -Encoding utf8 (Join-Path $dst 'RUN.txt')
-          Push-Location $dst
-          git init -q -b $env:ARTIFACT_BRANCH
-          git -c user.name='github-actions' -c user.email='actions@github.com' add -A
+          ) | Set-Content -Encoding utf8 RUN.txt
+          git add -A
           git -c user.name='github-actions' -c user.email='actions@github.com' commit -q -m "Windows smoke evidence for run $env:GITHUB_RUN_ID"
-          if ($LASTEXITCODE -ne 0) { Pop-Location; exit 1 }
-          git remote add origin "https://x-access-token:$env:GITHUB_TOKEN@github.com/${{ github.repository }}.git"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
           $push = git push --force origin $env:ARTIFACT_BRANCH 2>&1
-          $pushCode = $LASTEXITCODE
-          $push | ForEach-Object { "$_" -replace 'x-access-token:[^@]+@', 'x-access-token:***@' } | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          git remote remove origin
-          Pop-Location
-          if ($pushCode -ne 0) {
-            "::error title=Evidence push::git push exit $pushCode"
+          $code = $LASTEXITCODE
+          $text = (($push | ForEach-Object { "$_" }) -join ' | ') -replace '%', '%25'
+          if ($code -eq 0) {
+            "::notice::EVIDENCE pushed to branch $env:ARTIFACT_BRANCH (run $env:GITHUB_RUN_ID)"
+          } else {
+            if ($text.Length -gt 3000) { $text = $text.Substring($text.Length - 3000) }
+            "::error title=Evidence push failed (git push exit $code)::$text"
             exit 1
           }
