@@ -188,6 +188,9 @@ jobs:
         id: smoke
         shell: pwsh
         run: |
+          $where = (where.exe ffprobe 2>&1) -join ' ; '
+          $diag = python -c "import os, shutil; print('which(ffprobe)=', shutil.which('ffprobe'), '| which(ffprobe.exe)=', shutil.which('ffprobe.exe'), '| which(ffmpeg)=', shutil.which('ffmpeg'), '| PATHEXT=', repr(os.environ.get('PATHEXT')))" 2>&1
+          "::notice::SMOKE-ENV where ffprobe: $where | python: $($diag -join ' ')"
           $out = python scripts/smoke_test_brief_pipeline.py --font $env:SMOKE_FONT --work-dir (Join-Path $env:RUNNER_TEMP 'smoke') 2>&1
           $code = $LASTEXITCODE
           $out | Out-File -FilePath (Join-Path $env:RUNNER_TEMP 'smoke.log') -Encoding utf8
