@@ -1,0 +1,218 @@
+name: Windows smoke
+
+# Rehearses what a production Windows machine goes through, on GitHub's own Windows host.
+# The installed version is checked out first, then the gate script fast-forwards it to GitHub
+# main, which runs the OLD script's post-update validation for real. Afterwards the 2.x gates
+# and the brief pipeline run. Nothing here changes main or touches a production machine.
+# Evidence (logs, contact sheet, rendered frames) is published to a scratch branch so the
+# result can be inspected without signing in.
+
+on:
+  push:
+    branches: [main, v3-brief]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  statuses: write
+
+env:
+  UPGRADE_FROM: 6fb1d3bc3bfeb74fdaa813200ba18223903a7dbd
+  ARTIFACT_BRANCH: ci/windows-smoke
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python -m pip install --disable-pip-version-check pillow numpy
+
+      - name: Toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'stop'
+          $ff = ffmpeg -version | Select-Object -First 1
+          $fp = ffprobe -version | Select-Object -First 1
+          Write-Host "ffmpeg: $ff"
+          Write-Host "ffprobe: $fp"
+          Write-Host "pwsh: $(pwsh --version)"
+          Write-Host "python: $(python --version)"
+          $font = 'C:\Windows\Fonts\msyhbd.ttc'
+          if (-not (Test-Path -LiteralPath $font)) {
+            Write-Host 'Microsoft YaHei Bold is not installed on this image; falling back to Noto Sans CJK SC Bold.'
+            $font = Join-Path $env:RUNNER_TEMP 'NotoSansCJKsc-Bold.otf'
+            Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Bold.otf' -OutFile $font
+          }
+          "SMOKE_FONT=$font" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "FF=$ff" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: PowerShell syntax
+        id: syntax
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem scripts/*.ps1 | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) {
+              $failed = $true
+              $errors | ForEach-Object { Write-Host "$($_.Extent.File): $($_.Message)" }
+            }
+          }
+          if ($failed) { exit 1 }
+          Write-Host 'all PowerShell scripts parse'
+
+      - name: Production upgrade path (installed version to main through the gate script)
+        id: upgrade
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'upgrade.log'
+          git remote set-url origin https://github.com/15972706120-coder/news-editor-skill.git
+          git checkout -q -B main $env:UPGRADE_FROM
+          if (git status --porcelain=v1 --untracked-files=all) { throw 'worktree is not clean' }
+          $first = & pwsh -NoProfile -File scripts/ensure_latest_skill.ps1 -RunId ([guid]::NewGuid().ToString())
+          $firstCode = $LASTEXITCODE
+          $second = & pwsh -NoProfile -File scripts/ensure_latest_skill.ps1 -RunId ([guid]::NewGuid().ToString())
+          $secondCode = $LASTEXITCODE
+          $s1 = (($first | Where-Object { $_ -like '{*' } | Select-Object -Last 1) | ConvertFrom-Json).status
+          $s2 = (($second | Where-Object { $_ -like '{*' } | Select-Object -Last 1) | ConvertFrom-Json).status
+          @(
+            "active: $(git rev-parse --short HEAD) VERSION=$(Get-Content VERSION)"
+            "old gate exit=$firstCode status=$s1"
+            ($first -join "`n")
+            "new gate exit=$secondCode status=$s2"
+            ($second -join "`n")
+          ) | Tee-Object -FilePath $log
+          "GATE1=$s1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "GATE2=$s2" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          if ($s1 -ne 'UPDATED_READY_RELOAD' -or $s2 -ne 'LATEST_READY' -or $firstCode -ne 0 -or $secondCode -ne 0) { exit 1 }
+
+      - name: Consistency check
+        id: consistency
+        shell: pwsh
+        run: |
+          python scripts/check_skill_consistency.py 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'consistency.log')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Unit tests (includes the Windows publish dry-run gate)
+        id: tests
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'tests.log'
+          $failed = @()
+          foreach ($t in 'test_cover_geometry.py', 'test_production_contract.py', 'test_orchestration_contract.py', 'test_editorial_contract.py', 'test_editorial_ledger.py', 'test_performance_review.py') {
+            "=== $t" | Tee-Object -FilePath $log -Append
+            python (Join-Path scripts $t) 2>&1 | Tee-Object -FilePath $log -Append | Select-Object -Last 3
+            if ($LASTEXITCODE -ne 0) { $failed += $t }
+          }
+          if ($failed.Count) { Write-Host "FAILED: $($failed -join ', ')"; exit 1 }
+
+      - name: Smoke test (render, mix, assemble, validate, layout proof)
+        id: smoke
+        shell: pwsh
+        run: |
+          $out = python scripts/smoke_test_brief_pipeline.py --font $env:SMOKE_FONT --work-dir (Join-Path $env:RUNNER_TEMP 'smoke') 2>&1
+          $code = $LASTEXITCODE
+          $out | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'smoke.log')
+          $line = $out | Where-Object { "$_" -like '{*' } | Select-Object -Last 1
+          $summary = "exit=$code"
+          if ($line) {
+            $r = "$line" | ConvertFrom-Json
+            $summary = "$($r.status) frames=$($r.decoded_frames)/$($r.planned_frames) lufs=$($r.final_lufs) failed=$(@($r.failed_checks).Count)"
+          }
+          "SMOKE=$summary" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          if ($code -ne 0 -or $summary -notlike 'SMOKE_PASSED*') { exit 1 }
+
+      - name: Contact sheet
+        id: sheet
+        shell: pwsh
+        run: |
+          @'
+          import subprocess, sys
+          from pathlib import Path
+          from PIL import Image, ImageDraw
+          work = Path(sys.argv[1]) / "smoke"
+          src = work / "render" / "candidate.mp4"
+          w, h = 270, 480
+          raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(src), "-vf", f"scale={w}:{h}", "-pix_fmt", "rgb24", "-f", "rawvideo", "-"], capture_output=True, check=True).stdout
+          size = w * h * 3
+          frames = [Image.frombytes("RGB", (w, h), raw[i:i + size]) for i in range(0, len(raw) - size + 1, size)]
+          picks = sorted({0, 1, int(len(frames) * 0.05), int(len(frames) * 0.3), int(len(frames) * 0.55), int(len(frames) * 0.8), len(frames) - 1})
+          labels = ["cover", "first body frame", "caption 1", "caption 2", "shot change", "caption 3", "final"]
+          sheet = Image.new("RGB", (len(picks) * (w + 4) + 4, h + 28), (245, 245, 245))
+          draw = ImageDraw.Draw(sheet)
+          for i, n in enumerate(picks):
+              sheet.paste(frames[n], (4 + i * (w + 4), 24))
+              draw.text((6 + i * (w + 4), 6), f"f{n} {labels[i]}", fill=(0, 0, 0))
+          sheet.save(work / "smoke-contact-sheet.jpg", quality=90)
+          print("frames", len(frames), "sheet", sheet.size)
+          '@ | Set-Content -Encoding utf8 (Join-Path $env:RUNNER_TEMP 'sheet.py')
+          python (Join-Path $env:RUNNER_TEMP 'sheet.py') $env:RUNNER_TEMP
+
+      - name: Environment check (informational)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File scripts/check_environment.ps1 2>&1 | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'environment.log')
+          Write-Host "check_environment exit=$LASTEXITCODE (missing browser and download tools are expected on this host)"
+
+      - name: Publish evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'stop'
+          $tmp = $env:RUNNER_TEMP
+          $dst = Join-Path $tmp 'evidence'
+          New-Item -ItemType Directory -Force $dst | Out-Null
+          Get-ChildItem $tmp -Filter '*.log' | Copy-Item -Destination $dst
+          $smoke = Join-Path $tmp 'smoke\smoke'
+          foreach ($rel in 'smoke-contact-sheet.jpg', 'render\candidate.mp4', 'proof\cover.png', 'proof\caption-02-settled.png', 'proof\caption-02-header.png', 'proof\caption-02-footage.png') {
+            $src = Join-Path $smoke $rel
+            if (Test-Path -LiteralPath $src) { Copy-Item -LiteralPath $src -Destination $dst }
+          }
+          @(
+            "run=https://github.com/${{ github.repository }}/actions/runs/${{ github.RUN_ID }}"
+            "sha=$env:GITHUB_SHA"
+            "font=$env:SMOKE_FONT"
+            "gate=$env:GATE1 > $env:GATE2"
+            "smoke=$env:SMOKE"
+          ) | Set-Content -Encoding utf8 (Join-Path $dst 'RUN.txt')
+          Push-Location $dst
+          git init -q -b $env:ARTIFACT_BRANCH
+          git -c user.name='github-actions' -c user.email='actions@github.com' add -A
+          git -c user.name='github-actions' -c user.email='actions@github.com' commit -q -m "Windows smoke evidence for run $env:GITHUB_RUN_ID"
+          git remote add origin "https://x-access-token:$env:GITHUB_TOKEN@github.com/${{ github.repository }}.git"
+          git push -q --force origin $env:ARTIFACT_BRANCH
+          git remote remove origin
+          Pop-Location
+
+      - name: Publish summary as a commit status
+        if: always()
+        shell: pwsh
+        env:
+          SYNTAX: ${{ steps.syntax.outcome }}
+          UPGRADE: ${{ steps.upgrade.outcome }}
+          CONSISTENCY: ${{ steps.consistency.outcome }}
+          TESTS: ${{ steps.tests.outcome }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+        run: |
+          $ok = ($env:SYNTAX, $env:UPGRADE, $env:CONSISTENCY, $env:TESTS, $env:SMOKE_OUTCOME | Where-Object { $_ -ne 'success' }).Count -eq 0
+          $state = if ($ok) { 'success' } else { 'failure' }
+          $ff = ($env:FF -replace '^ffmpeg version ', '') -replace ' .*$', ''
+          $summary = "gate=$env:GATE1>$env:GATE2 | $env:SMOKE | ff=$ff | syntax=$env:SYNTAX tests=$env:TESTS consistency=$env:CONSISTENCY"
+          if ($summary.Length -gt 250) { $summary = $summary.Substring(0, 250) }
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
+          $body = @{ state = $state; context = 'Windows smoke'; description = $summary } | ConvertTo-Json
+          Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.SHA }}" -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $body | Out-Null
+          Write-Host "$state $summary"
