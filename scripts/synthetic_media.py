@@ -34,7 +34,7 @@ def scene(size: tuple[int, int], shot: int, seconds: float) -> np.ndarray:
     bands = 0.13*np.sin(x*9.5+shot+seconds*0.5)+0.08*np.sin(x*23+2*shot-seconds*0.9)
     cx, cy = 0.5+0.32*np.sin(0.45*seconds+shot), 0.5+0.12*np.cos(0.3*seconds+shot)
     glow = np.exp(-((x-cx)/0.26)**2-((y[:, :, 0]-cy)/0.55)**2)
-    grain = np.random.default_rng(shot*100003+round(seconds*30)).normal(0.0, 0.012, (h, w))
+    grain = np.random.default_rng(shot*100003+round(seconds*30)).normal(0.0, 0.006, (h, w))
     return np.clip(base*(1+bands[..., None]+0.6*glow[..., None])+glow[..., None]*light*0.35+grain[..., None], 0.0, 1.0)
 
 
