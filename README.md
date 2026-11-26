@@ -6,7 +6,7 @@
 
 按账号实测的题材优先级筛选热点、核验事实、下载可追溯素材，套用锁定的“标题块＋实拍带＋滑入字幕”版式，以 BGM＋字幕产出 9–15 秒竖屏成片，验收后发布。
 
-[![Version](https://img.shields.io/badge/version-2.1.1-00DCE6?style=flat-square)](VERSION)
+[![Version](https://img.shields.io/badge/version-2.1.2-00DCE6?style=flat-square)](VERSION)
 ![Status](https://img.shields.io/badge/status-active-2EA44F?style=flat-square)
 ![Canvas](https://img.shields.io/badge/canvas-1080%C3%971920-FFD400?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20%C2%B7%20macOS-0078D4?style=flat-square)
@@ -75,8 +75,7 @@ News-Editor
 ├─ scripts/                 # 版本门、时间轴契约、渲染、混音、合成、校验、分板与冒烟测试
 ├─ assets/
 │  ├─ audio/                # 内置新闻 BGM
-│  ├─ references/           # 锁定版式、封面资产、平台遮挡与版式参考图
-│  └─ legacy-v2/            # 旧版分页成片资产，仅供回看
+│  └─ references/           # 锁定版式、封面资产、平台遮挡与版式参考图
 ├─ agents/openai.yaml       # Skill 展示名称与调用提示
 └─ hooks/pre-commit         # 发布前一致性与回归门禁
 ```
