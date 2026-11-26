@@ -11,7 +11,7 @@
 - [封面文字位置参考](../assets/references/cover-text-layout-v2.png)：只用于测量字号、位置、颜色、描边和两行关系；示例文字不得直接带入新闻封面。
 - [封面完整样式](../assets/references/cover-style-reference.png)与[封面文字与装饰](../assets/references/cover-typography-reference.png)：整体观感对照。
 - [封面缩略图正反例](../assets/references/cover-grid-good-bad-reference.jpg)：上排两张是通过样式，下排两张是失败样式。只观察字数、字号、层级和缩略图可读性，不复制其中新闻事实。
-- [版式参考图里的封面](../assets/references/v3-reference/reference-contact-sheet.png)：合成素材渲染的三个封面（每行左侧），显示 7–8 个字主标题在自适应字号下的实际观感。
+- [版式参考图里的封面](../assets/references/v3-reference/reference-contact-sheet.png)：示例文案与真实视频帧渲染的三个封面（每行左侧，都按正式流程从素材帧截取），显示 7 个字主标题在自适应字号下的实际观感。
 - [平台叠层参考](../assets/references/platform-overlay-reference.webp)：用于观察账号头像、发布标题、右侧操作栏和底部输入栏对视频的遮挡；其界面文字不是新闻内容。
 
 ## 2. 封面文案不是新闻长标题

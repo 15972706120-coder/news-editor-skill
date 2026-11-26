@@ -63,7 +63,7 @@
 
 ## 2. 参考资产
 
-版式参考图位于 `assets/references/v3-reference/`（参考接触表、字幕滑入逐帧图、字体细节图），由 `scripts/build_layout_reference.py` 用合成素材和示例文案渲染，不含账号或第三方画面；对标成片的原件不随仓库分发。封面资产沿用 `assets/references/` 下的既有文件。V2 分页版式的参考帧已随旧版资产移除，旧成片的坐标只留在历史版本的锁定文件里。
+版式参考图位于 `assets/references/v3-reference/`（参考接触表、字幕滑入逐帧图、字体细节图），由 `scripts/build_layout_reference.py` 用示例文案和开放授权的真实视频帧渲染，画面来源与许可见同目录 `frames/SOURCES.md`；对标成片的原件不随仓库分发。封面资产沿用 `assets/references/` 下的既有文件。V2 分页版式的参考帧已随旧版资产移除，旧成片的坐标只留在历史版本的锁定文件里。
 
 ## 3. 静态预览与编码后分板验收
 

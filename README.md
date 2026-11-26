@@ -23,7 +23,7 @@ News-Editor 是一个面向 Codex 与兼容 Agent 平台的新闻短视频生产
 
 它不生成新闻画面：成片主体始终是真实、可追溯的素材；资料画面必须带免责小字，当事方原话可以保留源字幕与原声。
 
-![版式参考图：合成素材与示例文案渲染的三种形态](assets/references/v3-reference/reference-contact-sheet.png)
+![版式参考图：示例文案与开放授权真实画面渲染的三种形态](assets/references/v3-reference/reference-contact-sheet.png)
 
 适合：
 
@@ -98,7 +98,7 @@ News-Editor
 | 非洲婚礼父亲送比亚迪当嫁妆 | 国际暖闻＋国产品牌 | 两行标题块＋现场素材＋评论截图浮层 | BGM |
 | 花坛藏尸案一审宣判 | 社会案件 | 白字首行＋黄底行标题块，保留源字幕 | 当事方原声＋BGM |
 
-`assets/references/v3-reference/` 里的三张版式参考图由 `scripts/build_layout_reference.py` 用合成素材和示例文案渲染，分别对应上表第一、二、四行的形态。`scripts/smoke_test_brief_pipeline.py` 同样用合成素材重跑整条编码链，不依赖任何下载或样片文件。
+`assets/references/v3-reference/` 里的三张版式参考图由 `scripts/build_layout_reference.py` 用示例文案和开放授权的真实视频帧渲染——封面按正式流程从素材帧截取，素材带是真实画面——分别对应上表第一、二、四行的形态。`scripts/smoke_test_brief_pipeline.py` 是内部测试，用脚本自己生成的合成素材重跑整条编码链，不依赖任何下载或样片文件，产物不是新闻成片。
 
 ## 标准制作流程
 
