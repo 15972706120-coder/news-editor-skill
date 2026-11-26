@@ -25,6 +25,20 @@ SCALE = 4
 MASK_ALPHA, MASK_PIXELS = 200, 500
 
 
+def raw_frames(ffmpeg: str, video, video_filter: str, pix_fmt: str) -> bytes:
+    """Raw frames from ffmpeg. A decoder that fails raises with its own message instead of looking like zero frames.
+
+    Frame passthrough is requested the way the renderer and the validator do; the older `-vsync 0`
+    spelling is rejected by FFmpeg 9.
+    """
+    result = subprocess.run([ffmpeg, '-v', 'error', '-i', str(video), '-vf', video_filter, '-fps_mode', 'passthrough',
+                             '-f', 'rawvideo', '-pix_fmt', pix_fmt, '-'], capture_output=True)
+    if result.returncode:
+        raise ValueError(f'ffmpeg exited with {result.returncode} while decoding {Path(video).name}: '
+                         + result.stderr.decode('utf-8', 'replace').strip()[-400:])
+    return result.stdout
+
+
 def caption_units(blocks, text_mode, fps, cfg, lk):
     """(key, renderer tag, first slide frame, landing frame) in the renderer's own order."""
     slide, reveal = lk['body']['caption']['slide_frames'], math.ceil(cfg['video']['timing']['text_line_reveal_seconds']*fps)
@@ -66,8 +80,7 @@ def slide_problems(ffmpeg: str, video, render_dir: Path, units, width, height, s
         return ['slide-in images missing in the render directory']
     wanted = sorted({begin+k for _, _, begin, _ in units for k in range(slide)})
     expression = '+'.join(f'eq(n\\,{frame})' for frame in wanted)
-    raw = subprocess.run([ffmpeg, '-v', 'error', '-i', str(video), '-vf', f"select='{expression}'", '-vsync', '0',
-                          '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], capture_output=True).stdout
+    raw = raw_frames(ffmpeg, video, f"select='{expression}'", 'rgb24')
     decoded = np.frombuffer(raw, dtype=np.uint8)
     if len(decoded) < len(wanted)*width*height*3:
         return [f'only {len(decoded)//(width*height*3)} of {len(wanted)} slide-in frames decoded']
@@ -95,8 +108,10 @@ def caption_problems(ffmpeg: str, video, render_report: dict, timeline: dict, re
     cfg, lk = config(), lock()
     fps, total = timeline['fps'], timeline['total_frames']
     width, height = lk['canvas']['width']//SCALE, lk['canvas']['height']//SCALE
-    raw = subprocess.run([ffmpeg, '-v', 'error', '-i', str(video), '-vf', f'scale={width}:{height}',
-                          '-f', 'rawvideo', '-pix_fmt', 'gray', '-'], capture_output=True).stdout
+    try:
+        raw = raw_frames(ffmpeg, video, f'scale={width}:{height}', 'gray')
+    except ValueError as error:
+        return [str(error)]
     frames = np.frombuffer(raw, dtype=np.uint8).reshape(-1, height, width)
     if len(frames) < total:
         return [f'only {len(frames)} of {total} frames decoded']
@@ -129,8 +144,11 @@ def caption_problems(ffmpeg: str, video, render_report: dict, timeline: dict, re
             if gone:
                 problems.append(f'{key}: missing on frames {gone[:6]}')
     if render_dir is not None:
-        problems += slide_problems(ffmpeg, video, Path(render_dir), caption_units(blocks, text_mode, fps, cfg, lk),
-                                   lk['canvas']['width'], lk['canvas']['height'], slide)
+        try:
+            problems += slide_problems(ffmpeg, video, Path(render_dir), caption_units(blocks, text_mode, fps, cfg, lk),
+                                       lk['canvas']['width'], lk['canvas']['height'], slide)
+        except ValueError as error:
+            problems.append(str(error))
     return problems
 
 
