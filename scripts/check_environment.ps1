@@ -580,9 +580,17 @@ else {
     $packageJsonPath = Join-Path $resolvedProjectPath 'package.json'
     $packageLockPath = Join-Path $resolvedProjectPath 'package-lock.json'
     if (-not (Test-Path -LiteralPath $packageJsonPath -PathType Leaf)) {
-        Add-Check -Name 'remotion-project' -Category 'render' -Required $true -Status 'FAIL' `
-            -Detail "缺少 package.json：$resolvedProjectPath" `
-            -Fix '使用 create-video 创建工程，或传入正确的工程路径。'
+        if ($Renderer -eq 'remotion') {
+            Add-Check -Name 'remotion-project' -Category 'render' -Required $true -Status 'FAIL' `
+                -Detail "缺少 package.json：$resolvedProjectPath" `
+                -Fix '使用 create-video 创建工程，或传入正确的工程路径。'
+        }
+        else {
+            # 资讯快讯用内置 locked-ffmpeg 排版，不依赖 Remotion 工程；ProjectPath 在这里只说明项目根目录
+            Add-Check -Name 'remotion-project' -Category 'render' -Required $false -Status 'WARN' `
+                -Detail "ProjectPath 不是 Remotion 工程（没有 package.json）：$resolvedProjectPath。本次用内置 locked-ffmpeg 排版，不依赖它；这不代表已验证 Remotion。" `
+                -Fix '只有 Remotion 旧工程才需要传入含 package.json 的项目目录。'
+        }
     }
     else {
         try {
