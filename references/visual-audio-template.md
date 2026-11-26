@@ -14,7 +14,7 @@
 
 对标用的四条账号成片原件不随仓库分发（含第三方画面）。四种题型的做法：政策时间表等没有素材的信息用纯图文版（`brief_text`）；判决、纠纷类用三行标题块＋红字结果行，全部为资料画面时加免责小字；暖闻、现场类用两行标题块＋现场素材，讨论氛围可用评论截图浮层；有当事方原话的保留源字幕与原声。修改版式、渲染器或示例文案后，在 Windows 上重跑 `build_layout_reference.py`，核对并提交这三张图。
 
-封面沿用既有参考资产（样式未变）：[封面完整样式](../assets/references/cover-style-reference.png)、[封面文字与装饰](../assets/references/cover-typography-reference.png)、[V3 透明四角框与手绘线](../assets/references/cover-frame-lines-v3.png)、[封面双列缩略图正反例](../assets/references/cover-grid-good-bad-reference.jpg)、[平台叠层参考](../assets/references/platform-overlay-reference.webp)。旧版分页成片的视频与截帧已从仓库移除，旧规则只保留在 CHANGELOG。
+封面沿用既有参考资产（样式未变）：[封面完整样式](../assets/references/v3-reference/cover-style-reference.png)、[封面文字与装饰](../assets/references/cover-typography-reference.png)、[V3 透明四角框与手绘线](../assets/references/cover-frame-lines-v3.png)、[封面双列缩略图正反例](../assets/references/v3-reference/cover-grid-good-bad-reference.jpg)、[平台叠层参考](../assets/references/v3-reference/platform-overlay-reference.webp)。旧版分页成片的视频与截帧已从仓库移除，旧规则只保留在 CHANGELOG。
 
 ## 成片结构
 

@@ -380,7 +380,7 @@ jobs:
           # Reference stills rebuilt from the pushed commit with the production font.
           if (Test-Path -LiteralPath (Join-Path $tmp 'reference')) {
             New-Item -ItemType Directory -Force 'reference' | Out-Null
-            Copy-Item -Path (Join-Path $tmp 'reference\*.png') -Destination 'reference'
+            Copy-Item -Path (Join-Path $tmp 'reference\*') -Destination 'reference'
           }
           @(
             "run=https://github.com/${{ github.repository }}/actions/runs/${{ github.RUN_ID }}"

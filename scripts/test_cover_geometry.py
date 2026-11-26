@@ -30,7 +30,7 @@ VALID_SOURCE = FIXTURE_DIR / "frame.png"
 SMALL_COVER = FIXTURE_DIR / "thumbnail.png"
 Image.new("RGB", (1080, 1920), (12, 40, 90)).save(VALID_SOURCE)
 Image.new("RGB", (270, 360), (12, 40, 90)).save(SMALL_COVER)
-JPEG_REFERENCE = ROOT / "assets/references/cover-grid-good-bad-reference.jpg"
+JPEG_REFERENCE = ROOT / "assets/references/v3-reference/cover-grid-good-bad-reference.jpg"
 
 
 def geometry(**overrides):

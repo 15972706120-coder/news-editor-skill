@@ -13,6 +13,6 @@
 
 许可文本见 <https://creativecommons.org/licenses/by-sa/4.0/>。帧里出现的人都是车站这一公开场合里的旅客背影或侧影。
 
-由这些帧派生的三张参考图（`reference-contact-sheet.png`、`caption-slide-in-strip.png`、`typography-detail.png`）同样按 CC BY-SA 4.0 分发。参考图里的文案是虚构的示例，不是新闻事实。
+由这些帧派生的六张参考图（`reference-contact-sheet.png`、`caption-slide-in-strip.png`、`typography-detail.png`、`cover-style-reference.png`、`cover-grid-good-bad-reference.jpg`、`platform-overlay-reference.webp`）同样按 CC BY-SA 4.0 分发。参考图里的文案是虚构的示例，不是新闻事实。
 
 更换或新增帧时：从开放授权的视频里取清晰、无字幕、无水印的画面，在上表登记来源、作者、时间点和许可，然后在 Windows 上重跑脚本并提交重建的参考图。

@@ -9,10 +9,10 @@
 - [V3 透明四角框与手绘线](../assets/references/cover-frame-lines-v3.png)：1080×1920 RGBA，只保留白色四角框与手绘线；正式封面必须使用此透明资产。
 - [旧版四角框与暗化层](../assets/references/cover-frame-overlay-v2.png)：保留作历史位置参考；其暗层会遮住真实底图，禁止直接作为整图叠加层。
 - [封面文字位置参考](../assets/references/cover-text-layout-v2.png)：只用于测量字号、位置、颜色、描边和两行关系；示例文字不得直接带入新闻封面。
-- [封面完整样式](../assets/references/cover-style-reference.png)与[封面文字与装饰](../assets/references/cover-typography-reference.png)：整体观感对照。
-- [封面缩略图正反例](../assets/references/cover-grid-good-bad-reference.jpg)：上排两张是通过样式，下排两张是失败样式。只观察字数、字号、层级和缩略图可读性，不复制其中新闻事实。
+- [封面完整样式](../assets/references/v3-reference/cover-style-reference.png)与[封面文字与装饰](../assets/references/cover-typography-reference.png)：整体观感对照；前者是真实视频帧加示例文案的渲染成图，按正式流程从素材帧截取。
+- [封面缩略图正反例](../assets/references/v3-reference/cover-grid-good-bad-reference.jpg)：真实视频帧渲染的 2×2 缩略图。上排两张是通过样式；下排两张是按规则画出来的失败样式——字数过多、两行都被迫缩成小字，以及副标题比主标题还大、层级颠倒。只观察字数、字号、层级和缩略图可读性，示例文字不得带入新闻封面。
 - [版式参考图里的封面](../assets/references/v3-reference/reference-contact-sheet.png)：示例文案与真实视频帧渲染的三个封面（每行左侧，都按正式流程从素材帧截取），显示 7 个字主标题在自适应字号下的实际观感。
-- [平台叠层参考](../assets/references/platform-overlay-reference.webp)：用于观察账号头像、发布标题、右侧操作栏和底部输入栏对视频的遮挡；其界面文字不是新闻内容。
+- [平台叠层参考](../assets/references/v3-reference/platform-overlay-reference.webp)：按锁定 JSON 的平台保留区画出的示意图，叠在一帧成片上——顶部标题栏可能盖住标题块第 1 行，右侧操作栏与底部标题、评论入口压到画面边缘，字幕不得超出标出的宽度。
 
 ## 2. 封面文案不是新闻长标题
 
@@ -144,7 +144,7 @@ python scripts/check_cover_geometry.py <原始图片或封面帧PNG> --crop <左
 
 ## 7. 平台叠层预览门
 
-最终 MP4 交付前，从最终编码文件重新抽取：第 1 帧、每个字幕块到达后的稳定帧、每个切点后 1 帧和末帧。把这些帧按 [平台叠层参考](../assets/references/platform-overlay-reference.webp) 的遮挡关系检查，或在目标平台的草稿预览中检查。
+最终 MP4 交付前，从最终编码文件重新抽取：第 1 帧、每个字幕块到达后的稳定帧、每个切点后 1 帧和末帧。把这些帧按 [平台叠层参考](../assets/references/v3-reference/platform-overlay-reference.webp) 的遮挡关系检查，或在目标平台的草稿预览中检查。
 
 以下任一项直接失败：
 

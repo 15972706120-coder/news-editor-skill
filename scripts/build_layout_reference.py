@@ -20,11 +20,13 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 SCRIPTS = Path(__file__).resolve().parent
-from production_contract import caption_arrival, fullchar_units, load_timeline, lock, reading_seconds, sha256
+from production_contract import (body_geometry, caption_arrival, config, fullchar_units, load_timeline, lock,
+                                 reading_seconds, sha256)
 from caption_continuity import caption_problems
+from render_news_brief import Type, draw_text
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -34,7 +36,15 @@ FRAMES = SCRIPTS.parent/'assets/references/v3-reference/frames'
 COVER = (1080, 1440)  # the 3:4 window a cover is cut from, at its final size
 # Bottom-right small caption of every still, so an example is never mistaken for real output.
 LABEL = '示例文案（开放授权画面）'
-OUTPUTS = ('reference-contact-sheet.png', 'caption-slide-in-strip.png', 'typography-detail.png')
+OUTPUTS = ('reference-contact-sheet.png', 'caption-slide-in-strip.png', 'typography-detail.png',
+           'cover-style-reference.png', 'cover-grid-good-bad-reference.jpg', 'platform-overlay-reference.webp')
+# Covers drawn outside the rules on purpose, for the bottom row of the good/bad grid: (text, font px,
+# colour) per line, then the stored frame and its left edge for the 3:4 window. Too many characters leave
+# both lines tiny; a subline larger than its headline inverts the hierarchy.
+FAILING_COVERS = (
+    ((('列车运行图调整后旅客要注意什么', 56, 'cover_cyan'), ('多趟列车到发时刻变化记得及时改签', 50, 'white')),
+     'anshan-west-t06.jpg', 1120),
+    ((('调图提醒', 80, 'white'), ('出行先查车次', 136, 'cover_cyan')), 'anshan-west-t13.jpg', 1000))
 
 # Video form with the full header: tag line, dark tag, twist line, result line and b-roll disclaimer.
 FULL_HEADER = {
@@ -218,8 +228,69 @@ def typography_detail(stills: dict) -> Image.Image:
     return sheet
 
 
+def failing_cover(background: Image.Image, lines: tuple, type_: Type) -> Image.Image:
+    """A cover drawn outside the rules on purpose: fixed size and colour per line, no auto-fit."""
+    canvas = Image.new('RGBA', (WIDTH, HEIGHT), (0, 0, 0, 255))
+    bx, by, bw, bh = lock()['cover']['background_video']
+    canvas.paste(background.resize((bw, bh), Image.Resampling.LANCZOS), (bx, by))
+    canvas.alpha_composite(Image.open(SCRIPTS.parent/config()['cover']['frame_overlay']).convert('RGBA'))
+    for (text_, size, colour), anchor in zip(lines, ('headline_visible_bbox', 'subline_visible_bbox')):
+        bounds = lock()['cover'][anchor]
+        draw_text(canvas, text_, type_.font(size), [40, (bounds[1]+bounds[3])/2-size*.6, WIDTH-80, size*1.2],
+                  lock()['colors'][colour], 'center', 4)
+    return canvas.convert('RGB')
+
+
+def cover_grid(stills: dict, type_: Type) -> Image.Image:
+    """Top row: covers the renderer accepted. Bottom row: the same frame drawn outside the rules."""
+    tile, gap = (270, 480), 16
+    sheet = Image.new('RGB', (2*tile[0]+3*gap, 2*tile[1]+3*gap), (245, 245, 245))
+    for x, key in enumerate(('full cover', 'text cover')):
+        sheet.paste(stills[key].resize(tile, Image.Resampling.LANCZOS), (gap+x*(tile[0]+gap), gap))
+    for x, (lines, shot, left) in enumerate(FAILING_COVERS):
+        with Image.open(FRAMES/shot) as source:
+            background = source.convert('RGB').crop((left, 0, left+COVER[0], COVER[1]))
+        sheet.paste(failing_cover(background, lines, type_).resize(tile, Image.Resampling.LANCZOS),
+                    (gap+x*(tile[0]+gap), 2*gap+tile[1]))
+    return sheet
+
+
+def platform_overlay(base: Image.Image, plan: dict, type_: Type) -> Image.Image:
+    """What the platform interface may cover, drawn from the lock over a rendered body frame."""
+    zones = lock()['platform']
+    layer = Image.new('RGBA', base.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    ink, paper = (255, 255, 255, 255), (0, 0, 0, 255)
+    font, line = type_.font(44), 56
+    boxes = (((0, 0, WIDTH, zones['top_title_bar_until_y']), ('顶部标题栏', '可能盖住标题块第 1 行')),
+             ((zones['right_reserved_from_x'], zones['right_reserved_y'][0], WIDTH, zones['right_reserved_y'][1]),
+              ('右侧操作栏',)),
+             ((0, zones['bottom_reserved_from_y'], WIDTH, HEIGHT), ('底部标题与评论入口',)))
+    for (x0, y0, x1, y1), labels in boxes:
+        draw.rectangle((x0+3, y0+3, x1-4, y1-4), fill=(235, 60, 60, 92), outline=ink, width=6)
+        if x1-x0 >= 600:  # a full-width band: one label per line, centred
+            first = (y0+y1)/2-(len(labels)-1)*line/2
+            for index, label in enumerate(labels):
+                draw.text(((x0+x1)/2, first+index*line), label, font=font, fill=ink, anchor='mm', stroke_width=3, stroke_fill=paper)
+        else:  # the side column: one character per line
+            chars = ''.join(labels)
+            first = (y0+y1)/2-len(chars)*line/2+line/2
+            for index, char in enumerate(chars):
+                draw.text(((x0+x1)/2, first+index*line), char, font=font, fill=ink, anchor='mm', stroke_width=3, stroke_fill=paper)
+    # Captions must stay inside this width so the side column never covers them.
+    caption, half = body_geometry(lock(), plan)['caption'], zones['caption_max_width']//2
+    edge = (10, 234, 230, 255)
+    draw.rectangle((WIDTH/2-half, caption[1], WIDTH/2+half, HEIGHT), outline=edge, width=4)
+    chars = '字幕宽度上限'
+    for index, char in enumerate(chars):
+        draw.text((WIDTH/2-half+40, caption[1]+90+index*line), char, font=font, fill=edge, anchor='mm',
+                  stroke_width=3, stroke_fill=paper)
+    return Image.alpha_composite(base.convert('RGBA'), layer).convert('RGB').resize((540, 960), Image.Resampling.LANCZOS)
+
+
 def build(work: Path, args) -> dict:
     ff = args.ffmpeg or 'ffmpeg'
+    type_ = Type(args.font, args.font_index)
     full, full_out = render('full', video_plan('full', FULL_HEADER, work, ff), work, args)
     two, two_out = render('two', video_plan('two', TWO_LINE, work, ff), work, args)
     text, text_out = render('text', text_plan('text', TEXT_ONLY, work, ff), work, args)
@@ -233,10 +304,18 @@ def build(work: Path, args) -> dict:
               'text final': frame(text_out/'draft.mp4', text['total_frames']-1, ff)}
     images = {'reference-contact-sheet.png': contact_sheet(stills),
               'caption-slide-in-strip.png': slide_in_strip(full_out/'draft.mp4', full, ff),
-              'typography-detail.png': typography_detail(stills)}
+              'typography-detail.png': typography_detail(stills),
+              'cover-style-reference.png': stills['two-line cover'],
+              'cover-grid-good-bad-reference.jpg': cover_grid(stills, type_),
+              'platform-overlay-reference.webp': platform_overlay(stills['full caption 1'], full, type_)}
     args.out_dir.mkdir(parents=True, exist_ok=True)
     for name, image in images.items():
-        image.save(args.out_dir/name, optimize=True)
+        if name.endswith('.jpg'):
+            image.save(args.out_dir/name, quality=92, optimize=True)
+        elif name.endswith('.webp'):
+            image.save(args.out_dir/name, quality=90, method=6)
+        else:
+            image.save(args.out_dir/name, optimize=True)
     # Renders differ slightly between machines and font versions, so only the dimensions are compared:
     # a layout change that nobody rebuilt the committed stills for shows up as a different size.
     compared = []

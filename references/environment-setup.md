@@ -385,7 +385,7 @@ Skill 内置资源必须存在且文件非空：
 assets/audio/bgm-01.mp3
 assets/audio/bgm-02.mp3
 assets/audio/bgm-03.mp3
-assets/references/cover-style-reference.png
+assets/references/v3-reference/cover-style-reference.png
 assets/references/cover-typography-reference.png
 assets/references/v3-reference/reference-contact-sheet.png
 scripts/validate_news_video.py
@@ -468,7 +468,7 @@ pwsh -NoProfile -File (Join-Path $skillRoot 'scripts\check_environment.ps1') -Js
 - 仅使用配音模式时：使用默认女声生成一句中文 MP3。
 - 使用 FFprobe 确认音频时长大于 0。
 - 实际播放，确认中文发音正常。
-- 修改了版式、渲染器或参考图示例文案后：运行 `python scripts/build_layout_reference.py --font <微软雅黑粗体路径>`，逐张核对 `assets/references/v3-reference/` 下重建的三张图后提交。
+- 修改了版式、渲染器或参考图示例文案后：运行 `python scripts/build_layout_reference.py --font <微软雅黑粗体路径>`，逐张核对 `assets/references/v3-reference/` 下重建的六张图后提交。
 
 ### 12.4 Remotion 渲染测试
 

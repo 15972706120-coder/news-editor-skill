@@ -538,8 +538,8 @@ $requiredSkillFiles = @(
     'assets/audio/bgm-01.mp3',
     'assets/audio/bgm-02.mp3',
     'assets/audio/bgm-03.mp3',
-    'assets/references/cover-style-reference.png',
     'assets/references/cover-typography-reference.png',
+    'assets/references/v3-reference/cover-style-reference.png',
     'assets/references/v3-reference/reference-contact-sheet.png'
 )
 $missingSkillFiles = [System.Collections.Generic.List[string]]::new()
