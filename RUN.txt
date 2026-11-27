@@ -1,0 +1,5 @@
+run=https://github.com/15972706120-coder/news-editor-skill/actions/runs/45944420340
+commit=5796524483d3a2e2e973969dac1cd98b5209364a
+font=C:\Windows\Fonts\msyhbd.ttc
+gate=1.15.0 -> 2.1.2/5796524 exit=0 status=UPDATED_READY_RELOAD > 2.0.3 -> 2.1.2/5796524 exit=0 status=UPDATED_READY_RELOAD > 2.0.4 -> 2.1.2/5796524 exit=0 status=UPDATED_READY_RELOAD > 2.1.0 -> 2.1.2/5796524 exit=0 status=UPDATED_READY_RELOAD > 2.1.1 -> 2.1.2/5796524 exit=0 status=UPDATED_READY_RELOAD > reloaded gate exit=0 status=LATEST_READY
+smoke=SMOKE_PASSED frames=390/390 lufs=-13.23 failed=0

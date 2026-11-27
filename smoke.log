@@ -1,0 +1,1 @@
+{"status": "SMOKE_PASSED", "work_dir": "D:\\a\\_temp\\smoke\\smoke", "decoded_frames": 390, "planned_frames": 390, "failed_checks": [], "final_lufs": -13.23, "scope": "INTERNAL engine wiring and frame accounting only; outputs are never publishable"}

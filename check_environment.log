@@ -1,0 +1,39 @@
+
+[32;1mstatus[0m[32;1m required[0m[32;1m category     [0m[32;1m name               [0m[32;1m detail[0m
+[32;1m------[0m [32;1m--------[0m [32;1m--------     [0m [32;1m----               [0m [32;1m------                                                               [0m
+PASS       True system        platform            Microsoft Windows 10.0.26100 X64
+PASS       True system        powershell          7.6.10
+FAIL       True runtime       node                检测到 v22.23.5，完整流程要求 Node.js 24 LTS 或更高兼容版本。
+PASS       True runtime       npm                 10.9.9 at C:\Program Files\nodejs\npm.ps1
+PASS       True runtime       npx                 10.9.9 at C:\Program Files\nodejs\npx.ps1
+PASS       True runtime       python              Python 3.12.10 at
+                                                  C:\hostedtoolcache\windows\Python\3.12.10\x64\python.exe
+FAIL       True browser       agent-browser-cli   未找到 agent-browser。
+FAIL       True agent-skill   agent-browser-skill 未找到 agent-browser Skill。
+WARN      False agent-skill   remotion-skill      未找到 Remotion
+                                                  Skill。已有工程仍可机械渲染，但新工程实现可靠性会降低。
+FAIL       True download      yt-dlp              未找到 yt-dlp Python 模块或命令。
+SKIP      False speech        edge-tts-legacy     未安装旧版 Edge TTS；这不会阻塞 MiniMax 制作。
+PASS       True speech        minimax-client      MiniMax TTS client is present. API credentials are checked only at
+                                                  the first real voice generation.
+SKIP      False speech        minimax-credentials Deferred until the first real MiniMax voice generation; never paste
+                                                  the key into chat or logs.
+PASS       True media         ffmpeg              ffmpeg version n8.1.3-41-ga8029b6528-20261126 Copyright (c)
+                                                  2000-2026 the FFmpeg developers at
+                                                  D:\a\_temp\ffmpeg\ffmpeg-n8.1-latest-win64-gpl-8.1\bin\ffmpeg.exe
+PASS       True media         ffmpeg-filters      crop, scale, boxblur, fade, loudnorm, volume, amix, afade, alimiter
+PASS       True media         ffmpeg-encoders     libx264, aac
+PASS       True media         ffprobe             ffprobe version n8.1.3-41-ga8029b6528-20261126 Copyright (c)
+                                                  2007-2026 the FFmpeg developers at
+                                                  D:\a\_temp\ffmpeg\ffmpeg-n8.1-latest-win64-gpl-8.1\bin\ffprobe.exe
+PASS       True browser       chromium-browser    C:\Program Files\Google\Chrome\Application\chrome.exe
+PASS       True visual        approved-bold-font  微软雅黑粗体 C:/Windows/Fonts/msyhbd.ttc（字体集合序号 0）
+PASS       True skill         news-editor-assets  14 个必需文件完整，Skill
+                                                  根目录：D:\a\news-editor-skill\news-editor-skill
+SKIP      False render        remotion-project    使用内置 locked-ffmpeg 排版，不依赖 Remotion 工程；这不代表已验证
+                                                  Remotion。
+WARN      False authorization douyin-login        软件预检不能证明抖音登录有效；首次运行必须由用户在专用浏览器 profile
+                                                  手动登录。
+
+
+News-Editor ready: False; required failures: 4; warnings: 2

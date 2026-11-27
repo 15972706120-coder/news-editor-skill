@@ -1,0 +1,120 @@
+{
+  "source": "D:\\a\\_temp\\smoke\\smoke\\render\\candidate.mp4",
+  "source_sha256": "bb0d5255db2108beb54db740bffe9241a853774999e55c2e8e2d950be1c86f51",
+  "timeline_sha256": "bb6160fc7056ecb01d98b7cea5458660391ae2495ecf9ba2740cbc278e19f645",
+  "lock_sha256": "4b42a69782bf02781b9c9d7b5e9696800dbb62510f1c9156a5f9e6c67d630bd0",
+  "contract": "D:\\a\\news-editor-skill\\news-editor-skill\\assets\\references\\locked-layout\\layout-lock-v3.json",
+  "format": "brief_video",
+  "probe": {
+    "codec": "h264",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "duration": 13.0,
+    "decoded_frames": 390,
+    "frames": 390
+  },
+  "zones": {
+    "headline_block": [
+      30,
+      127,
+      1020,
+      266
+    ],
+    "result_line": [
+      15,
+      415,
+      1050,
+      52
+    ],
+    "disclaimer": [
+      48,
+      509,
+      460,
+      31
+    ],
+    "header": [
+      0,
+      0,
+      1080,
+      546
+    ],
+    "footage": [
+      0,
+      546,
+      1080,
+      672
+    ],
+    "caption": [
+      0,
+      1218,
+      1080,
+      702
+    ]
+  },
+  "cover_frames": 1,
+  "cover_evidence_usage": "Encoded MP4 frame and derived crops/thumbnails are QA evidence only; never use them as the independent upload cover or source background. Use the lossless master.",
+  "structural_checks": {
+    "width": true,
+    "height": true,
+    "fps": true,
+    "frames_match_plan": true
+  },
+  "frames": {
+    "cover": 0,
+    "first_body": 1,
+    "final": 389,
+    "caption_01_settled": 14,
+    "caption_02_settled": 135,
+    "caption_03_settled": 228,
+    "cut_01_before": 93,
+    "cut_01_after": 94,
+    "cut_02_before": 203,
+    "cut_02_after": 204,
+    "cut_03_before": 302,
+    "cut_03_after": 303
+  },
+  "full_frame_files": {
+    "cover": "cover.png",
+    "first_body": "first-body.png",
+    "final": "final.png",
+    "caption_01_settled": "caption-01-settled.png",
+    "caption_02_settled": "caption-02-settled.png",
+    "caption_03_settled": "caption-03-settled.png",
+    "cut_01_before": "cut-01-before.png",
+    "cut_01_after": "cut-01-after.png",
+    "cut_02_before": "cut-02-before.png",
+    "cut_02_after": "cut-02-after.png",
+    "cut_03_before": "cut-03-before.png",
+    "cut_03_after": "cut-03-after.png"
+  },
+  "caption_zone_files": {
+    "caption_01": {
+      "header": "caption-01-header.png",
+      "footage": "caption-01-footage.png",
+      "caption": "caption-01-caption.png"
+    },
+    "caption_02": {
+      "header": "caption-02-header.png",
+      "footage": "caption-02-footage.png",
+      "caption": "caption-02-caption.png"
+    },
+    "caption_03": {
+      "header": "caption-03-header.png",
+      "footage": "caption-03-footage.png",
+      "caption": "caption-03-caption.png"
+    }
+  },
+  "manual_review_required": [
+    "cover_full_and_3x4",
+    "cover_thumbnail_270x360",
+    "each_caption_header_against_reference",
+    "each_caption_footage_or_panel_fill_and_source_text",
+    "each_caption_text_legibility_and_width",
+    "each_cut_before_after",
+    "caption_slide_in_frames",
+    "final_frame",
+    "platform_overlay"
+  ],
+  "status": "NEEDS_VISUAL_REVIEW"
+}

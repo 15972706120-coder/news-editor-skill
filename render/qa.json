@@ -1,0 +1,378 @@
+{
+  "passed": true,
+  "status": "MACHINE_CHECKS_PASSED",
+  "validation_scope": "production_machine_checks",
+  "manual_review_required": true,
+  "final_ready": false,
+  "review_boundary": "Machine checks do not establish visual, factual, cover, or auditory approval. Review the final MP4 and separate cover; verify prominent-audio/BGM evidence before FINAL_READY.",
+  "sha256": "bb0d5255db2108beb54db740bffe9241a853774999e55c2e8e2d950be1c86f51",
+  "timeline_sha256": "bb6160fc7056ecb01d98b7cea5458660391ae2495ecf9ba2740cbc278e19f645",
+  "assembly_sha256": "e95951aee3a29b02b18dcce56a18729b3569f5532c6b86600887e0576982209e",
+  "diagnostic_only": true,
+  "file": "D:\\a\\_temp\\smoke\\smoke\\render\\candidate.mp4",
+  "format": {
+    "duration": 13.0,
+    "size": 6995920,
+    "format_name": "mov,mp4,m4a,3gp,3g2,mj2"
+  },
+  "video": {
+    "codec": "h264",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "duration": 13.0,
+    "decoded_frames": 390
+  },
+  "audio": [
+    {
+      "codec": "aac",
+      "sample_rate": "48000",
+      "channels": 2,
+      "duration": 13.0
+    }
+  ],
+  "loudness": {
+    "integrated_lufs": -13.23,
+    "true_peak_dbtp": -1.59,
+    "loudness_range_lu": 0.5,
+    "threshold_lufs": -23.23
+  },
+  "timeline": {
+    "source": "D:\\a\\_temp\\smoke\\smoke\\timeline.json",
+    "schema_version": 2,
+    "fps": 30,
+    "caption_blocks": [
+      {
+        "id": "b1",
+        "start_frame": 1,
+        "end_frame": 128,
+        "lines": [
+          "湖南一对情侣办酒席同居生子",
+          "始终未领证 分手后男方起诉女方",
+          "男方索要百余万元财物并争夺抚养权",
+          "还称二人只是同事关系"
+        ],
+        "timing": {
+          "information_task": "INTERNAL smoke-test fixture",
+          "reading_basis": "sample pacing",
+          "cut_reason": "next information point",
+          "reading_hold_seconds": 4.03
+        }
+      },
+      {
+        "id": "b2",
+        "start_frame": 128,
+        "end_frame": 221,
+        "lines": [
+          "衡阳中院二审维持原判",
+          "已满8岁的孩子自愿随母亲生活",
+          "男方按月支付抚养费"
+        ],
+        "timing": {
+          "information_task": "INTERNAL smoke-test fixture",
+          "reading_basis": "sample pacing",
+          "cut_reason": "next information point",
+          "reading_hold_seconds": 3.07
+        }
+      },
+      {
+        "id": "b3",
+        "start_frame": 221,
+        "end_frame": 390,
+        "lines": [
+          "判定吉普车归男方 房产双方各占一半",
+          "38万余元转账、彩礼不予返还",
+          "但以结婚为前提赠送的钻剑 判令女方返还"
+        ],
+        "timing": {
+          "information_task": "INTERNAL smoke-test fixture",
+          "reading_basis": "sample pacing",
+          "cut_reason": "next information point",
+          "reading_hold_seconds": 3.77
+        }
+      }
+    ],
+    "expected_caption_blocks": 3,
+    "cover_frames": 1,
+    "caption_block_frame_counts": [
+      127,
+      93,
+      169
+    ],
+    "expected_frames": 390
+  },
+  "checks": [
+    {
+      "name": "video_stream_count",
+      "actual": 1,
+      "expected": 1,
+      "passed": true
+    },
+    {
+      "name": "audio_stream_count",
+      "actual": 1,
+      "expected": "<=1",
+      "passed": true
+    },
+    {
+      "name": "decode_errors",
+      "actual": "",
+      "expected": "",
+      "passed": true
+    },
+    {
+      "name": "decoded_video_present",
+      "actual": 390,
+      "expected": ">0",
+      "passed": true
+    },
+    {
+      "name": "frame_pts_complete",
+      "actual": 390,
+      "expected": 390,
+      "passed": true
+    },
+    {
+      "name": "frame_pts_start_zero",
+      "actual": 0.0,
+      "expected": "0 +/- 0.00013020833333333333",
+      "passed": true
+    },
+    {
+      "name": "frame_pts_strictly_increasing",
+      "actual": 0.03333299999999895,
+      "expected": "> 0",
+      "passed": true
+    },
+    {
+      "name": "frame_pts_cfr_interval",
+      "actual": {
+        "bad_frame_count": 0,
+        "first_bad_frames": []
+      },
+      "expected": {
+        "interval_seconds": 0.03333333333333333,
+        "tolerance_seconds": 0.00013020833333333333
+      },
+      "passed": true
+    },
+    {
+      "name": "frame_pts_timeline_grid",
+      "actual": {
+        "bad_frame_count": 0,
+        "first_bad_frames": [],
+        "last_pts": 12.966667
+      },
+      "expected": {
+        "pts_seconds": "frame_index / fps",
+        "tolerance_seconds": 0.00013020833333333333
+      },
+      "passed": true
+    },
+    {
+      "name": "video_codec",
+      "actual": "h264",
+      "expected": "h264",
+      "passed": true
+    },
+    {
+      "name": "pixel_format",
+      "actual": "yuv420p",
+      "expected": "yuv420p",
+      "passed": true
+    },
+    {
+      "name": "mp4_container",
+      "actual": "mov,mp4,m4a,3gp,3g2,mj2",
+      "expected": "mp4",
+      "passed": true
+    },
+    {
+      "name": "timeline_caption_block_intervals",
+      "actual": 3,
+      "expected": "contiguous [1,total_frames) coverage",
+      "passed": true
+    },
+    {
+      "name": "color_tags",
+      "actual": "bt709/bt709/bt709",
+      "expected": "bt709/bt709/bt709",
+      "passed": true
+    },
+    {
+      "name": "container_duration_seconds",
+      "actual": 13.0,
+      "expected": 13.0,
+      "passed": true
+    },
+    {
+      "name": "video_stream_duration_seconds",
+      "actual": 13.0,
+      "expected": 13.0,
+      "passed": true
+    },
+    {
+      "name": "width",
+      "actual": 1080,
+      "expected": 1080,
+      "passed": true
+    },
+    {
+      "name": "height",
+      "actual": 1920,
+      "expected": 1920,
+      "passed": true
+    },
+    {
+      "name": "fps",
+      "actual": 30.0,
+      "expected": 30,
+      "passed": true
+    },
+    {
+      "name": "audio_stream",
+      "actual": 1,
+      "expected": 1,
+      "passed": true
+    },
+    {
+      "name": "audio_codec",
+      "actual": "aac",
+      "expected": "aac",
+      "passed": true
+    },
+    {
+      "name": "decoded_video_frames",
+      "actual": 390,
+      "expected": 390,
+      "passed": true
+    },
+    {
+      "name": "video_stream_duration_from_frames",
+      "actual": 13.0,
+      "expected": 13.0,
+      "passed": true
+    },
+    {
+      "name": "audio_sample_rate_hz",
+      "actual": 48000,
+      "expected": 48000,
+      "passed": true
+    },
+    {
+      "name": "audio_channels",
+      "actual": 2,
+      "expected": 2,
+      "passed": true
+    },
+    {
+      "name": "audio_video_duration_difference_seconds",
+      "actual": 0.0,
+      "expected": "<= 0.03333333333333333",
+      "passed": true
+    },
+    {
+      "name": "audio_stream_for_loudness",
+      "actual": 1,
+      "expected": ">=1",
+      "passed": true
+    },
+    {
+      "name": "integrated_loudness_lufs",
+      "actual": -13.23,
+      "expected": "-14.0 to -11.5",
+      "passed": true
+    },
+    {
+      "name": "true_peak_dbtp",
+      "actual": -1.59,
+      "expected": "<= -1.5",
+      "passed": true
+    },
+    {
+      "name": "qa_frame_extraction",
+      "actual": {
+        "extracted": 31,
+        "missing_frames": []
+      },
+      "expected": {
+        "requested": 31,
+        "missing_frames": []
+      },
+      "passed": true
+    },
+    {
+      "name": "input_unchanged_during_validation",
+      "actual": "bb0d5255db2108beb54db740bffe9241a853774999e55c2e8e2d950be1c86f51",
+      "expected": "bb0d5255db2108beb54db740bffe9241a853774999e55c2e8e2d950be1c86f51",
+      "passed": true
+    }
+  ],
+  "extracted_frames": [
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000000.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000001.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000007.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000012.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000013.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000047.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000064.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000093.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000094.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000127.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000128.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000129.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000133.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000134.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000149.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000174.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000203.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000204.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000220.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000221.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000222.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000226.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000227.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000253.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000302.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000303.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000305.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000346.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000387.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000388.png",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000389.png"
+  ],
+  "extracted_frame_sha256": {
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000000.png": "7dd7cdd5a076a13bd0d043575135ecf26fbf16ebb6092cf55e8995ada5508da4",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000001.png": "a1d1f497bae45e3f274db13d98fa6826ae0c6490f079432f5d362cce09f1f482",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000007.png": "0def6388fe78a1f152174e4c840389199944ad348d3fb078a4132de1434dfcee",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000012.png": "b45e1fa5c800b03854659c5d888ade661d8f95d6def4b161ed8bfd5f6d18d917",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000013.png": "a64bcb9e501e6ddba5298933ad758b670f93e49d4d213a2926b3ea8e0026f9b1",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000047.png": "cb4a5c171b82b49f4eee1b7e345ad6dab1f16354f090d855ff6144ee700ee5c2",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000064.png": "1f4ce52e9c26a73830bccf72e3c65b686be292ea3fe6b0339d4ad76b3ecfa366",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000093.png": "8f4c90e2672ccfea76a41e0ec1c5fa393d5b1e743c2fc42274dd0685f1f39f86",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000094.png": "6fe5883ef1349bac676aa210b52a9d7664b03f5391f9b4ab554315092b8234fc",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000127.png": "8460c2da6d4c49ffe03fce0a9eecabf2fa12e021a5f2c7fcde390dbf02f1fe45",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000128.png": "c8f333ee3ff973325f2fae3bc863d55966b641fa154aed7dbe903c7a176e5e20",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000129.png": "d2c37c1e599fe132decc67b1ebe2dc5c93bbd10ff66b62b81268baa4cb5e08c7",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000133.png": "f0bf7410a2fef509e3e18391861a9357f8a48342716db70b1127017c31018321",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000134.png": "deb9efddfcb3d0cac37b784fbe3b9f2d04c3e8459053a62216ddc57685f93868",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000149.png": "1ce135dca2ae199fe13fe0568e707f08f0e17e16c2e724402d43414ecf753699",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000174.png": "366744a127279b7f1a8b6158f07d6a5361e098c8ae4b56a4fa28733b2ebe349d",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000203.png": "c706b7f4c5157f9f2d37f0bfabe4ff3e29529b5956b7a27ba01694015ef3410e",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000204.png": "31cde885bfbb99a646c38f14a078eef0b26d93624771ef304d6ac28a8c688639",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000220.png": "c9ea616369665e75f1b0bc54eb5d20dd717c93008b6a1407c587082db65b1d24",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000221.png": "8f25844d04d02d863e3b1407c88fbcc48ebda0fff5203ffb4b1f2e449db359df",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000222.png": "3c5300a638e05fa83db8d107c212bf521c74dfeac801c1fe4201c2a1191b3efa",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000226.png": "1d629ec9d283a041f051a752bec86f58140e8e9d5f31b8c67df1b6e730d4aea9",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000227.png": "ea8edf2bd01c4709922058f8f3107c4a7e31b0ece98616b6e29150450c6367e9",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000253.png": "564bad0905bfa95eaac558fe6b26abc4c897679d6430e8d22c25fc67d06cf508",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000302.png": "de7530a79d814c8485cba524e61298904988f273932f762b8fad19198cf3a14b",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000303.png": "b14c3dd090b7816ac6830cff287bb2aa9ed4081ef0d56b60dcc339485cf37474",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000305.png": "f021b0b3aca466c74bdefe2b2bf5150f595ca45ae38ae9e7ab90ecd628ef233f",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000346.png": "ef9501e2af113dfb9bc35c03b686db733e955d2d2f28e26b1a3bfe9f31924e7a",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000387.png": "3124e85e4fe2a763636429474d2bfcbb6c6b48521b340ad7d7c45ab5b9136b95",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000388.png": "ab8f44872370fc819d4cd90036436704544bd637d90c49a852b22d1ba0340988",
+    "D:\\a\\_temp\\smoke\\smoke\\render\\qa\\frame-000389.png": "835a436dddd2e52e6ddeba157fcb418ee1e5f22cea190a373b2ac3f273955477"
+  },
+  "missing_extracted_frames": []
+}
